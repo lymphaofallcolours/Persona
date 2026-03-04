@@ -80,6 +80,13 @@ export interface DeviceState {
   selected: DeviceSelection
 }
 
+export interface PersonaExport {
+  version: number
+  exportedAt: string
+  presets: Preset[]
+  groups: PresetGroup[]
+}
+
 export type ToastType = 'error' | 'warning' | 'info'
 
 export interface Toast {

@@ -13,6 +13,8 @@ export interface PersonaAPI {
     delete(id: string): Promise<boolean>
     duplicate(id: string): Promise<Preset | undefined>
     reorder(orderedIds: string[]): Promise<void>
+    export(ids: string[]): Promise<boolean>
+    import(): Promise<{ presetCount: number; groupCount: number } | null>
   }
   groups: {
     getAll(): Promise<PresetGroup[]>
@@ -73,7 +75,9 @@ const api: PersonaAPI = {
     update: (id, updates) => ipcRenderer.invoke(IPC.PRESET_UPDATE, id, updates),
     delete: (id) => ipcRenderer.invoke(IPC.PRESET_DELETE, id),
     duplicate: (id) => ipcRenderer.invoke(IPC.PRESET_DUPLICATE, id),
-    reorder: (orderedIds) => ipcRenderer.invoke(IPC.PRESET_REORDER, orderedIds)
+    reorder: (orderedIds) => ipcRenderer.invoke(IPC.PRESET_REORDER, orderedIds),
+    export: (ids) => ipcRenderer.invoke(IPC.PRESET_EXPORT, ids),
+    import: () => ipcRenderer.invoke(IPC.PRESET_IMPORT)
   },
   groups: {
     getAll: () => ipcRenderer.invoke(IPC.GROUP_GET_ALL),

@@ -7,6 +7,9 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.8.0] — 2026-03-04
+- feat(presets): add preset export/import via .persona files (d71ab3b)
+
 ## [0.7.0] — 2026-03-04
 - feat(groups): add preset groups, hotbar, per-preset volume, and global hotkeys (634691a)
 

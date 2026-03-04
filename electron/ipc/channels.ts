@@ -7,6 +7,8 @@ export const IPC = {
   PRESET_DELETE: 'preset:delete',
   PRESET_DUPLICATE: 'preset:duplicate',
   PRESET_REORDER: 'preset:reorder',
+  PRESET_EXPORT: 'preset:export',
+  PRESET_IMPORT: 'preset:import',
 
   // Groups
   GROUP_GET_ALL: 'group:get-all',
@@ -36,6 +38,7 @@ export const IPC = {
 
   // Dialog
   DIALOG_OPEN_FILE: 'dialog:open-file',
+  DIALOG_SAVE_FILE: 'dialog:save-file',
 
   // OSC (Carla parameter control)
   OSC_CONNECT: 'osc:connect',

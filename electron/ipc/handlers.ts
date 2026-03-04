@@ -6,7 +6,8 @@ import * as devices from '../services/devices'
 import * as carla from '../services/carla'
 import * as carlaOsc from '../services/carlaOsc'
 import type { AudioLink } from '../services/pipewire'
-import type { AppStatus, AudioDevice, Toast, ToastType, ParameterSnapshot } from '../../src/types'
+import { readFileSync, writeFileSync } from 'fs'
+import type { AppStatus, AudioDevice, Toast, ToastType, ParameterSnapshot, PersonaExport } from '../../src/types'
 
 let activePresetId: string | null = null
 let activeLinks: AudioLink[] = []
@@ -244,6 +245,49 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.PRESET_REORDER, (_event, orderedIds: string[]) => {
     presetStore.reorderPresets(orderedIds)
+  })
+
+  ipcMain.handle(IPC.PRESET_EXPORT, async (_event, presetIds: string[]) => {
+    const win = BrowserWindow.getFocusedWindow()
+    if (!win) return false
+
+    const data = presetStore.exportPresets(presetIds)
+    const defaultName = data.presets.length === 1
+      ? `${data.presets[0].name}.persona`
+      : 'presets.persona'
+
+    const result = await dialog.showSaveDialog(win, {
+      defaultPath: defaultName,
+      filters: [{ name: 'Persona Presets', extensions: ['persona'] }]
+    })
+
+    if (result.canceled || !result.filePath) return false
+    writeFileSync(result.filePath, JSON.stringify(data, null, 2))
+    sendToast('info', `Exported ${data.presets.length} preset${data.presets.length !== 1 ? 's' : ''}`)
+    return true
+  })
+
+  ipcMain.handle(IPC.PRESET_IMPORT, async () => {
+    const win = BrowserWindow.getFocusedWindow()
+    if (!win) return null
+
+    const result = await dialog.showOpenDialog(win, {
+      properties: ['openFile'],
+      filters: [{ name: 'Persona Presets', extensions: ['persona'] }]
+    })
+
+    if (result.canceled || result.filePaths.length === 0) return null
+
+    try {
+      const raw = readFileSync(result.filePaths[0], 'utf-8')
+      const data = JSON.parse(raw) as PersonaExport
+      const counts = presetStore.importPresets(data)
+      sendToast('info', `Imported ${counts.presetCount} preset${counts.presetCount !== 1 ? 's' : ''}`)
+      return counts
+    } catch (err: any) {
+      sendToast('error', `Import failed: ${err.message}`)
+      return null
+    }
   })
 
   // --- Groups ---

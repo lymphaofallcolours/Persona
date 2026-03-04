@@ -3,7 +3,7 @@ import { join } from 'path'
 import { homedir } from 'os'
 import { app } from 'electron'
 import { v4 as uuidv4 } from 'uuid'
-import type { Preset, PresetConfig, PresetGroup } from '../../src/types'
+import type { Preset, PresetConfig, PresetGroup, PersonaExport } from '../../src/types'
 
 const CONFIG_DIR = join(homedir(), '.config', 'persona')
 const CONFIG_FILE = join(CONFIG_DIR, 'presets.json')
@@ -194,6 +194,73 @@ export function reorderGroups(orderedIds: string[]): void {
     })
     .filter((g): g is PresetGroup => g !== undefined)
   saveConfig(config)
+}
+
+// --- Export / Import ---
+
+export function exportPresets(presetIds: string[]): PersonaExport {
+  const config = loadConfig()
+  const selected = config.presets.filter(p => presetIds.includes(p.id))
+
+  // Collect groups referenced by selected presets
+  const groupIds = new Set(selected.map(p => p.groupId).filter(Boolean))
+  const groups = config.groups.filter(g => groupIds.has(g.id))
+
+  // Strip fields that are personal/local
+  const exportedPresets = selected.map(p => {
+    const { isFactory, hotbarSlot, ...rest } = p
+    return { ...rest, isFactory: false } as Preset
+  })
+
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    presets: exportedPresets,
+    groups
+  }
+}
+
+export function importPresets(data: PersonaExport): { presetCount: number; groupCount: number } {
+  if (!data || data.version !== 1 || !Array.isArray(data.presets)) {
+    throw new Error('Invalid .persona file')
+  }
+
+  const config = loadConfig()
+
+  // Build ID remap for groups
+  const groupIdMap = new Map<string, string>()
+  let newGroupCount = 0
+
+  if (data.groups && data.groups.length > 0) {
+    const maxOrder = config.groups.reduce((max, g) => Math.max(max, g.order), -1)
+    for (const group of data.groups) {
+      const newId = uuidv4()
+      groupIdMap.set(group.id, newId)
+      config.groups.push({
+        id: newId,
+        name: group.name,
+        order: maxOrder + 1 + newGroupCount
+      })
+      newGroupCount++
+    }
+  }
+
+  // Import presets with new IDs
+  let newPresetCount = 0
+  for (const preset of data.presets) {
+    const newPreset: Preset = {
+      ...preset,
+      id: uuidv4(),
+      isFactory: false,
+      hotbarSlot: undefined,
+      groupId: preset.groupId ? groupIdMap.get(preset.groupId) : undefined
+    }
+    config.presets.push(newPreset)
+    newPresetCount++
+  }
+
+  saveConfig(config)
+  return { presetCount: newPresetCount, groupCount: newGroupCount }
 }
 
 // --- Hotbar ---

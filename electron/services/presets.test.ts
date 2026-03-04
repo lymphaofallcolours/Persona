@@ -23,7 +23,7 @@ vi.mock('os', async () => {
 })
 
 // Now import after mocks are set up
-const { loadConfig, saveConfig, getPresets, createPreset, updatePreset, deletePreset, duplicatePreset, reorderPresets, getGroups, createGroup, updateGroup, deleteGroup, getHotbarPresets } = await import('./presets')
+const { loadConfig, saveConfig, getPresets, createPreset, updatePreset, deletePreset, duplicatePreset, reorderPresets, getGroups, createGroup, updateGroup, deleteGroup, getHotbarPresets, exportPresets, importPresets } = await import('./presets')
 
 describe('PresetStore', () => {
   beforeEach(() => {
@@ -161,6 +161,83 @@ describe('Hotbar', () => {
     expect(hotbar.length).toBe(2)
     expect(hotbar[0].hotbarSlot).toBe(1)
     expect(hotbar[1].hotbarSlot).toBe(3)
+  })
+})
+
+describe('Export/Import', () => {
+  beforeEach(() => {
+    const configDir = join(tempDir, '.config', 'persona')
+    rmSync(configDir, { recursive: true, force: true })
+  })
+
+  it('exports presets with stripped factory and hotbar fields', () => {
+    const preset = createPreset('Voice A', '#ff0000', ['Calf EQ'])
+    updatePreset(preset.id, { hotbarSlot: 3, volume: 0.8 })
+
+    const data = exportPresets([preset.id])
+    expect(data.version).toBe(1)
+    expect(data.presets.length).toBe(1)
+    expect(data.presets[0].isFactory).toBe(false)
+    expect(data.presets[0].hotbarSlot).toBeUndefined()
+    expect(data.presets[0].volume).toBe(0.8)
+    expect(data.presets[0].name).toBe('Voice A')
+    expect(data.exportedAt).toBeTruthy()
+  })
+
+  it('exports groups referenced by selected presets', () => {
+    const group = createGroup('NPCs')
+    const preset = createPreset('NPC Voice', '#000', [])
+    updatePreset(preset.id, { groupId: group.id })
+
+    const data = exportPresets([preset.id])
+    expect(data.groups.length).toBe(1)
+    expect(data.groups[0].name).toBe('NPCs')
+  })
+
+  it('imports presets with new IDs', () => {
+    const preset = createPreset('Original', '#111', ['P1'])
+    const data = exportPresets([preset.id])
+
+    const beforeCount = getPresets().length
+    const result = importPresets(data)
+
+    expect(result.presetCount).toBe(1)
+    expect(getPresets().length).toBe(beforeCount + 1)
+
+    // Imported preset has different ID
+    const imported = getPresets().find(p => p.name === 'Original' && p.id !== preset.id)
+    expect(imported).toBeTruthy()
+    expect(imported!.plugins).toEqual(['P1'])
+  })
+
+  it('remaps group IDs on import', () => {
+    const group = createGroup('Villains')
+    const preset = createPreset('Evil Voice', '#000', [])
+    updatePreset(preset.id, { groupId: group.id })
+
+    const data = exportPresets([preset.id])
+
+    // Delete original group and preset
+    deletePreset(preset.id)
+    deleteGroup(group.id)
+
+    const result = importPresets(data)
+    expect(result.groupCount).toBe(1)
+
+    // Imported group has new ID, preset references it
+    const importedPreset = getPresets().find(p => p.name === 'Evil Voice')
+    expect(importedPreset).toBeTruthy()
+    expect(importedPreset!.groupId).toBeTruthy()
+    expect(importedPreset!.groupId).not.toBe(group.id) // New ID
+
+    const importedGroup = getGroups().find(g => g.name === 'Villains' && g.id !== group.id)
+    expect(importedGroup).toBeTruthy()
+    expect(importedPreset!.groupId).toBe(importedGroup!.id)
+  })
+
+  it('rejects invalid import data', () => {
+    expect(() => importPresets({ version: 99, exportedAt: '', presets: [], groups: [] })).toThrow()
+    expect(() => importPresets(null as any)).toThrow()
   })
 })
 

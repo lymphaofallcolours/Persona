@@ -95,6 +95,21 @@ export function PresetPanel({
     onRefresh()
   }
 
+  const handleExport = async (presetId: string) => {
+    closeContextMenu()
+    await window.persona.presets.export([presetId])
+  }
+
+  const handleExportAll = async () => {
+    const ids = presets.map(p => p.id)
+    await window.persona.presets.export(ids)
+  }
+
+  const handleImport = async () => {
+    const result = await window.persona.presets.import()
+    if (result) onRefresh()
+  }
+
   const handleMoveToGroup = async (presetId: string, groupId: string | undefined) => {
     closeContextMenu()
     await window.persona.presets.update(presetId, { groupId })
@@ -257,6 +272,22 @@ export function PresetPanel({
         )}
       </div>
 
+      {/* Import / Export toolbar */}
+      <div className="flex justify-end gap-2 mb-2">
+        <button
+          onClick={handleImport}
+          className="px-2 py-1 rounded text-[11px] text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+        >
+          Import
+        </button>
+        <button
+          onClick={handleExportAll}
+          className="px-2 py-1 rounded text-[11px] text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+        >
+          Export All
+        </button>
+      </div>
+
       {/* Preset grid */}
       <div className="grid grid-cols-2 gap-3" onClick={closeContextMenu}>
         {filteredPresets.map((preset, index) => {
@@ -328,6 +359,12 @@ export function PresetPanel({
               className="w-full text-left px-3 py-1.5 text-zinc-300 hover:bg-zinc-700"
             >
               Duplicate
+            </button>
+            <button
+              onClick={() => handleExport(contextMenu.preset.id)}
+              className="w-full text-left px-3 py-1.5 text-zinc-300 hover:bg-zinc-700"
+            >
+              Export
             </button>
 
             {/* Hotbar pin/unpin */}

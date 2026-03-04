@@ -1,4 +1,4 @@
-import { spawn, execFile, execSync, ChildProcess } from 'child_process'
+import { spawn, execFile, execFileSync, execSync, ChildProcess } from 'child_process'
 import { existsSync } from 'fs'
 import { CARLA_OSC_PORT } from './carlaOsc'
 
@@ -9,13 +9,20 @@ type CrashCallback = () => void
 export type CarlaWindowMode = 'visible' | 'minimized' | 'no-gui'
 
 // Carla launch commands (tried in order)
+// JACK env vars ensure Carla uses JACK backend (PipeWire's JACK compat layer)
 const CARLA_COMMANDS = [
-  { cmd: 'flatpak', args: ['run', 'studio.kx.carla'] },
+  { cmd: 'flatpak', args: ['run',
+    '--env=JACK_NO_START_SERVER=1',
+    '--env=PIPEWIRE_LATENCY=256/48000',
+    'studio.kx.carla'] },
   { cmd: 'carla', args: [] }
 ]
 
 const CARLA_COMMANDS_NOGUI = [
-  { cmd: 'flatpak', args: ['run', 'studio.kx.carla', '--no-gui'] },
+  { cmd: 'flatpak', args: ['run',
+    '--env=JACK_NO_START_SERVER=1',
+    '--env=PIPEWIRE_LATENCY=256/48000',
+    'studio.kx.carla', '--no-gui'] },
   { cmd: 'carla', args: ['--no-gui'] }
 ]
 
@@ -92,10 +99,11 @@ function restoreCarlaWindow(): void {
 
 /**
  * Check if Carla is already running (any instance, not just ours).
+ * Uses pgrep with a specific pattern to avoid matching grep itself.
  */
 export function isRunning(): boolean {
   try {
-    const result = execSync('pgrep -f carla', { timeout: 1000, stdio: 'pipe' })
+    const result = execSync('pgrep -f "[c]arla"', { timeout: 1000, stdio: 'pipe' })
     return result.toString().trim().length > 0
   } catch {
     return false
@@ -125,7 +133,12 @@ export function launch(projectFile?: string): boolean {
       carlaProcess = spawn(cmd, fullArgs, {
         detached: true,
         stdio: 'ignore',
-        env: { ...process.env, CARLA_OSC_UDP_PORT: String(CARLA_OSC_PORT) }
+        env: {
+          ...process.env,
+          CARLA_OSC_UDP_PORT: String(CARLA_OSC_PORT),
+          JACK_NO_START_SERVER: '1',
+          PIPEWIRE_LATENCY: '256/48000'
+        }
       })
 
       carlaProcess.on('exit', (code) => {
@@ -163,11 +176,11 @@ export function launch(projectFile?: string): boolean {
 }
 
 /**
- * Stop all Carla processes.
+ * Stop all Carla processes and wait for them to die.
  * Flatpak wraps Carla in a sandbox — killing the `flatpak run` wrapper
  * doesn't kill the actual Carla process. Use pkill to ensure cleanup.
  */
-export function stop(): void {
+export async function stop(): Promise<void> {
   // Kill our spawned process (the flatpak wrapper)
   if (carlaProcess && !carlaProcess.killed) {
     carlaProcess.kill('SIGTERM')
@@ -176,7 +189,20 @@ export function stop(): void {
 
   // Also kill any remaining Carla processes (handles Flatpak sandbox)
   try {
-    execFile('pkill', ['-f', 'carla'], { timeout: 2000 })
+    execFileSync('pkill', ['-f', 'carla'], { timeout: 2000 })
+  } catch {
+    // No matching processes — that's fine
+  }
+
+  // Wait up to 5s for processes to actually die
+  for (let i = 0; i < 10; i++) {
+    if (!isRunning()) return
+    await new Promise(r => setTimeout(r, 500))
+  }
+
+  // Force kill if still alive
+  try {
+    execFileSync('pkill', ['-9', '-f', 'carla'], { timeout: 2000 })
   } catch {
     // No matching processes — that's fine
   }

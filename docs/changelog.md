@@ -7,6 +7,9 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.10.2] — 2026-03-04
+- fix(carla): dynamic PipeWire port discovery, async stop, JACK env vars (5bab534)
+
 ## [0.10.1] — 2026-03-04
 - fix(presets): clean up stale factory presets, fix monitor on preset switch (f3d4f81)
 

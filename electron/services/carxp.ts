@@ -37,3 +37,26 @@ export function getCarxpEndpoints(filePath: string): { first: string; last: stri
   if (plugins.length === 0) return null
   return { first: plugins[0], last: plugins[plugins.length - 1] }
 }
+
+export interface CarxpValidation {
+  hasPlugins: boolean
+  hasInternalPatchbay: boolean
+  pluginNames: string[]
+}
+
+/**
+ * Validate a .carxp file for routing readiness.
+ * Checks for plugins and internal patchbay wiring.
+ * Missing <Patchbay> means plugins won't be wired internally by Carla.
+ */
+export function validateCarxp(filePath: string): CarxpValidation {
+  const xml = readFileSync(filePath, 'utf-8')
+  const pluginNames = parseCarxpPlugins(filePath)
+  const hasInternalPatchbay = /<Patchbay>/.test(xml)
+
+  return {
+    hasPlugins: pluginNames.length > 0,
+    hasInternalPatchbay,
+    pluginNames
+  }
+}

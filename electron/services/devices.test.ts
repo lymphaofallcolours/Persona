@@ -6,12 +6,28 @@ vi.mock('child_process', () => ({
 }))
 
 import { execFile } from 'child_process'
-import { getInputDevices, getOutputDevices, getCarlaPlugins, getDefaultSource, getDefaultSink, snapshotBaseline } from './devices'
+import {
+  getInputDevices, getOutputDevices, getCarlaPlugins,
+  getDefaultSource, getDefaultSink, snapshotBaseline,
+  waitForCarlaPort, discoverCarlaRoutingPorts
+} from './devices'
 
 const mockExecFile = vi.mocked(execFile)
 
+let execResults: Record<string, string> = {}
+
 function mockExecResult(stdout: string) {
   mockExecFile.mockImplementation((_cmd, _args, _opts, callback: any) => {
+    callback(null, stdout)
+    return {} as any
+  })
+}
+
+function mockExecByArgs(results: Record<string, string>) {
+  execResults = results
+  mockExecFile.mockImplementation((_cmd: any, args: any, _opts: any, callback: any) => {
+    const key = Array.isArray(args) ? args.join(' ') : String(args)
+    const stdout = execResults[key] ?? ''
     callback(null, stdout)
     return {} as any
   })
@@ -26,6 +42,7 @@ function mockExecError() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  execResults = {}
 })
 
 describe('getInputDevices', () => {
@@ -86,12 +103,10 @@ describe('getOutputDevices', () => {
 describe('getCarlaPlugins', () => {
   it('returns only nodes that appeared after baseline snapshot', async () => {
     // Step 1: snapshot baseline (before Carla launches)
-    mockExecResult(
-      'alsa_input.mic:capture_FL\n' +
-      'alsa_output.headphones:monitor_FL\n' +
-      'firefox:output_FL\n' +
-      'pipewire-pulse:capture_1\n'
-    )
+    mockExecByArgs({
+      '-o': 'alsa_input.mic:capture_FL\nalsa_output.headphones:monitor_FL\nfirefox:output_FL\npipewire-pulse:capture_1\n',
+      '-i': 'alsa_output.headphones:playback_FL\n'
+    })
     await snapshotBaseline()
 
     // Step 2: after Carla launches, new plugins appear
@@ -110,7 +125,10 @@ describe('getCarlaPlugins', () => {
 
   it('excludes Firefox and other pre-existing apps', async () => {
     // Firefox was running before Carla
-    mockExecResult('firefox:output_FL\nfirefox:output_FR\n')
+    mockExecByArgs({
+      '-o': 'firefox:output_FL\nfirefox:output_FR\n',
+      '-i': ''
+    })
     await snapshotBaseline()
 
     // Still just Firefox — no Carla plugins
@@ -120,12 +138,10 @@ describe('getCarlaPlugins', () => {
   })
 
   it('returns empty when no baseline and no new nodes', async () => {
-    // No baseline set, but only system nodes
-    mockExecResult(
-      'alsa_input.mic:capture_FL\n' +
-      'alsa_output.headphones:monitor_FL\n'
-    )
-    // Take baseline with these
+    mockExecByArgs({
+      '-o': 'alsa_input.mic:capture_FL\nalsa_output.headphones:monitor_FL\n',
+      '-i': ''
+    })
     await snapshotBaseline()
 
     // Same nodes — nothing new
@@ -135,6 +151,76 @@ describe('getCarlaPlugins', () => {
     )
     const plugins = await getCarlaPlugins()
     expect(plugins).toEqual([])
+  })
+})
+
+describe('discoverCarlaRoutingPorts', () => {
+  it('discovers individual plugin ports (Calf-style)', async () => {
+    // Set baseline with just system nodes
+    mockExecByArgs({
+      '-o': 'alsa_input.mic:capture_FL\nalsa_input.mic:capture_FR\n',
+      '-i': 'alsa_output.hp:playback_FL\nalsa_output.hp:playback_FR\n'
+    })
+    await snapshotBaseline()
+
+    // After Carla: plugins appear
+    mockExecByArgs({
+      '-o': 'alsa_input.mic:capture_FL\nalsa_input.mic:capture_FR\nCalf Compressor:Out L\nCalf Compressor:Out R\nCalf Reverb:Out L\nCalf Reverb:Out R\n',
+      '-i': 'alsa_output.hp:playback_FL\nalsa_output.hp:playback_FR\nCalf Compressor:In L\nCalf Compressor:In R\nCalf Reverb:In L\nCalf Reverb:In R\n'
+    })
+
+    const routing = await discoverCarlaRoutingPorts()
+    // First input node = first plugin's input
+    expect(routing.inputPorts).toEqual({
+      left: 'Calf Compressor:In L',
+      right: 'Calf Compressor:In R'
+    })
+    // Last output node = last plugin's output
+    expect(routing.outputPorts).toEqual({
+      left: 'Calf Reverb:Out L',
+      right: 'Calf Reverb:Out R'
+    })
+  })
+
+  it('discovers single Carla node ports', async () => {
+    mockExecByArgs({
+      '-o': 'alsa_input.mic:capture_FL\n',
+      '-i': 'alsa_output.hp:playback_FL\n'
+    })
+    await snapshotBaseline()
+
+    mockExecByArgs({
+      '-o': 'alsa_input.mic:capture_FL\nCarla:audio-out1\nCarla:audio-out2\n',
+      '-i': 'alsa_output.hp:playback_FL\nCarla:audio-in1\nCarla:audio-in2\n'
+    })
+
+    const routing = await discoverCarlaRoutingPorts()
+    expect(routing.inputPorts).toEqual({
+      left: 'Carla:audio-in1',
+      right: 'Carla:audio-in2'
+    })
+    expect(routing.outputPorts).toEqual({
+      left: 'Carla:audio-out1',
+      right: 'Carla:audio-out2'
+    })
+  })
+
+  it('returns null ports when no new nodes', async () => {
+    mockExecByArgs({
+      '-o': 'alsa_input.mic:capture_FL\n',
+      '-i': 'alsa_output.hp:playback_FL\n'
+    })
+    await snapshotBaseline()
+
+    // No new nodes after "launch"
+    mockExecByArgs({
+      '-o': 'alsa_input.mic:capture_FL\n',
+      '-i': 'alsa_output.hp:playback_FL\n'
+    })
+
+    const routing = await discoverCarlaRoutingPorts()
+    expect(routing.inputPorts).toBeNull()
+    expect(routing.outputPorts).toBeNull()
   })
 })
 

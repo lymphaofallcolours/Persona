@@ -2,7 +2,7 @@ import { describe, it, expect, afterAll } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
-import { parseCarxpPlugins, getCarxpEndpoints } from './carxp'
+import { parseCarxpPlugins, getCarxpEndpoints, validateCarxp } from './carxp'
 
 const tempDir = mkdtempSync(join(tmpdir(), 'carxp-test-'))
 
@@ -45,6 +45,36 @@ const SINGLE_PLUGIN_CARXP = `<?xml version='1.0' encoding='UTF-8'?>
 
 const EMPTY_CARXP = `<?xml version='1.0' encoding='UTF-8'?>
 <CARLA-PROJECT VERSION='2.5'>
+</CARLA-PROJECT>`
+
+const CARXP_WITH_PATCHBAY = `<?xml version='1.0' encoding='UTF-8'?>
+<CARLA-PROJECT VERSION='2.5'>
+  <Plugin>
+    <Info>
+      <Type>LV2</Type>
+      <Name>Calf Compressor</Name>
+    </Info>
+  </Plugin>
+  <Plugin>
+    <Info>
+      <Type>LV2</Type>
+      <Name>Calf Reverb</Name>
+    </Info>
+  </Plugin>
+  <Patchbay>
+    <Connection>
+      <OutputPlugin>0</OutputPlugin>
+      <OutputPort>0</OutputPort>
+      <InputPlugin>1</InputPlugin>
+      <InputPort>0</InputPort>
+    </Connection>
+  </Patchbay>
+  <ExternalPatchbay>
+    <Connection>
+      <Source>system:capture_1</Source>
+      <Target>Calf Compressor:In L</Target>
+    </Connection>
+  </ExternalPatchbay>
 </CARLA-PROJECT>`
 
 describe('parseCarxpPlugins', () => {
@@ -91,5 +121,38 @@ describe('getCarxpEndpoints', () => {
     const file = join(tempDir, 'empty.carxp')
     writeFileSync(file, EMPTY_CARXP)
     expect(getCarxpEndpoints(file)).toBeNull()
+  })
+})
+
+describe('validateCarxp', () => {
+  it('detects plugins and missing patchbay', () => {
+    const file = join(tempDir, 'no-patchbay.carxp')
+    writeFileSync(file, SAMPLE_CARXP)
+    const result = validateCarxp(file)
+    expect(result.hasPlugins).toBe(true)
+    expect(result.hasInternalPatchbay).toBe(false)
+    expect(result.pluginNames).toEqual(['Calf Compressor', 'Calf EQ', 'Calf Reverb'])
+  })
+
+  it('detects plugins and present patchbay', () => {
+    const file = join(tempDir, 'with-patchbay.carxp')
+    writeFileSync(file, CARXP_WITH_PATCHBAY)
+    const result = validateCarxp(file)
+    expect(result.hasPlugins).toBe(true)
+    expect(result.hasInternalPatchbay).toBe(true)
+    expect(result.pluginNames).toEqual(['Calf Compressor', 'Calf Reverb'])
+  })
+
+  it('detects empty project', () => {
+    const file = join(tempDir, 'empty-validate.carxp')
+    writeFileSync(file, EMPTY_CARXP)
+    const result = validateCarxp(file)
+    expect(result.hasPlugins).toBe(false)
+    expect(result.hasInternalPatchbay).toBe(false)
+    expect(result.pluginNames).toEqual([])
+  })
+
+  it('throws for missing file', () => {
+    expect(() => validateCarxp('/nonexistent/file.carxp')).toThrow()
   })
 })

@@ -6,34 +6,31 @@ const SINK = 'alsa_output.test-headphones'
 
 describe('buildPresetLinks', () => {
   it('returns empty array for Off preset', () => {
-    const links = buildPresetLinks(MIC, SINK, null, true)
+    const links = buildPresetLinks(MIC, SINK, null, null, true)
     expect(links).toEqual([])
   })
 
-  it('creates direct passthrough when no endpoints (no .carxp)', () => {
-    const links = buildPresetLinks(MIC, SINK, null, false)
+  it('creates direct passthrough when no Carla ports', () => {
+    const links = buildPresetLinks(MIC, SINK, null, null, false)
     expect(links).toEqual([
       { source: `${MIC}:capture_FL`, destination: `${SINK}:playback_FL` },
       { source: `${MIC}:capture_FR`, destination: `${SINK}:playback_FR` }
     ])
   })
 
-  it('routes mic→first and last→output for single plugin', () => {
-    const endpoints = { first: 'Calf Reverb', last: 'Calf Reverb' }
-    const links = buildPresetLinks(MIC, SINK, endpoints, false)
+  it('creates passthrough when only carlaIn is null', () => {
+    const carlaOut = { left: 'Calf Reverb:Out L', right: 'Calf Reverb:Out R' }
+    const links = buildPresetLinks(MIC, SINK, null, carlaOut, false)
     expect(links).toEqual([
-      { source: `${MIC}:capture_FL`, destination: 'Calf Reverb:In L' },
-      { source: `${MIC}:capture_FR`, destination: 'Calf Reverb:In R' },
-      { source: 'Calf Reverb:Out L', destination: `${SINK}:playback_FL` },
-      { source: 'Calf Reverb:Out R', destination: `${SINK}:playback_FR` }
+      { source: `${MIC}:capture_FL`, destination: `${SINK}:playback_FL` },
+      { source: `${MIC}:capture_FR`, destination: `${SINK}:playback_FR` }
     ])
   })
 
-  it('routes mic→first and last→output for multi-plugin chain', () => {
-    // Carla handles Compressor→EQ→Reverb internally
-    const endpoints = { first: 'Calf Compressor', last: 'Calf Reverb' }
-    const links = buildPresetLinks(MIC, SINK, endpoints, false)
-
+  it('routes through Carla with individual plugin ports', () => {
+    const carlaIn = { left: 'Calf Compressor:In L', right: 'Calf Compressor:In R' }
+    const carlaOut = { left: 'Calf Reverb:Out L', right: 'Calf Reverb:Out R' }
+    const links = buildPresetLinks(MIC, SINK, carlaIn, carlaOut, false)
     expect(links).toEqual([
       { source: `${MIC}:capture_FL`, destination: 'Calf Compressor:In L' },
       { source: `${MIC}:capture_FR`, destination: 'Calf Compressor:In R' },
@@ -42,9 +39,22 @@ describe('buildPresetLinks', () => {
     ])
   })
 
-  it('generates exactly 4 links for any endpoint pair (stereo in + stereo out)', () => {
-    const endpoints = { first: 'Plugin A', last: 'Plugin B' }
-    const links = buildPresetLinks(MIC, SINK, endpoints, false)
+  it('routes through single Carla node ports', () => {
+    const carlaIn = { left: 'Carla:audio-in1', right: 'Carla:audio-in2' }
+    const carlaOut = { left: 'Carla:audio-out1', right: 'Carla:audio-out2' }
+    const links = buildPresetLinks(MIC, SINK, carlaIn, carlaOut, false)
+    expect(links).toEqual([
+      { source: `${MIC}:capture_FL`, destination: 'Carla:audio-in1' },
+      { source: `${MIC}:capture_FR`, destination: 'Carla:audio-in2' },
+      { source: 'Carla:audio-out1', destination: `${SINK}:playback_FL` },
+      { source: 'Carla:audio-out2', destination: `${SINK}:playback_FR` }
+    ])
+  })
+
+  it('generates exactly 4 links for any port pair (stereo in + stereo out)', () => {
+    const carlaIn = { left: 'Plugin A:In L', right: 'Plugin A:In R' }
+    const carlaOut = { left: 'Plugin B:Out L', right: 'Plugin B:Out R' }
+    const links = buildPresetLinks(MIC, SINK, carlaIn, carlaOut, false)
     expect(links).toHaveLength(4)
   })
 })

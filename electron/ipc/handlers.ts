@@ -5,7 +5,7 @@ import * as pipewire from '../services/pipewire'
 import * as devices from '../services/devices'
 import * as carla from '../services/carla'
 import * as carlaOsc from '../services/carlaOsc'
-import { getCarxpEndpoints } from '../services/carxp'
+import { validateCarxp } from '../services/carxp'
 import type { AudioLink } from '../services/pipewire'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import type { AppStatus, AudioDevice, Toast, ToastType, PersonaExport, SessionProfile } from '../../src/types'
@@ -102,7 +102,7 @@ export async function activatePreset(id: string): Promise<void> {
   const preset = presetStore.getPreset(id)
   if (!preset) throw new Error(`Preset not found: ${id}`)
 
-  // Disconnect any existing links
+  // 1. Disconnect old active links
   if (activeLinks.length > 0) {
     await pipewire.disconnectBatch(activeLinks)
     activeLinks = []
@@ -112,41 +112,54 @@ export async function activatePreset(id: string): Promise<void> {
   const hasCarxp = preset.carxpPath && existsSync(preset.carxpPath)
   const sameCarxp = preset.carxpPath === currentCarxpPath || (!preset.carxpPath && !currentCarxpPath)
 
-  let endpoints: { first: string; last: string } | null = null
+  let carlaIn: { left: string; right: string } | null = null
+  let carlaOut: { left: string; right: string } | null = null
 
   if (hasCarxp) {
+    // 2a. Validate .carxp
+    try {
+      const validation = validateCarxp(preset.carxpPath!)
+      if (!validation.hasPlugins) {
+        sendToast('warning', 'No plugins found in .carxp file')
+      }
+      if (validation.hasPlugins && !validation.hasInternalPatchbay) {
+        sendToast('warning', 'No internal patchbay in .carxp — plugins may not be wired together. Save the project in Carla to fix this.')
+      }
+    } catch {
+      sendToast('error', 'Failed to read .carxp file')
+    }
+
+    // 2b. Stop old Carla if different project
     const needsRestart = carlaRunning && !sameCarxp
     const needsStart = !carlaRunning
 
     if (needsRestart) {
       sendToast('info', 'Restarting Carla with new project file...')
       await carlaOsc.disconnect()
-      carla.stop()
+      await carla.stop()
       carlaRunning = false
       currentCarxpPath = undefined
-      await new Promise(r => setTimeout(r, 1000))
     }
 
     if (needsStart || needsRestart) {
-      // Snapshot PipeWire nodes before launch so we detect only Carla plugins
+      // 2c. Snapshot PipeWire baseline before launch
       await devices.snapshotBaseline()
 
+      // 2d. Launch Carla with .carxp
       const launched = carla.launch(preset.carxpPath)
       if (launched) {
         sendToast('info', 'Starting Carla...')
         currentCarxpPath = preset.carxpPath
-        for (let i = 0; i < 30; i++) {
-          await new Promise(r => setTimeout(r, 500))
-          const plugins = await devices.getCarlaPlugins()
-          if (plugins.length > 0) {
-            carlaPlugins = plugins
-            carlaRunning = true
-            break
-          }
+
+        // 2e. Wait for ANY new PipeWire port (not just specific plugin names)
+        const firstPort = await devices.waitForCarlaPort(15000)
+        if (firstPort) {
+          carlaPlugins = await devices.getCarlaPlugins()
+          carlaRunning = true
+        } else {
+          sendToast('warning', 'Carla started but no PipeWire ports detected. Check that Carla\'s audio driver is set to JACK.')
         }
-        if (carlaPlugins.length === 0) {
-          sendToast('warning', 'Carla started but no plugins detected yet. The preset may not work correctly.')
-        }
+
         // Connect OSC after Carla is ready
         try {
           carlaOsc.connect()
@@ -158,20 +171,21 @@ export async function activatePreset(id: string): Promise<void> {
       }
     }
 
-    // Parse .carxp to find first/last plugin for PipeWire routing
-    try {
-      endpoints = getCarxpEndpoints(preset.carxpPath!)
-      if (!endpoints) {
-        sendToast('warning', 'No plugins found in .carxp file')
+    // 2f. Discover actual port names from PipeWire (dynamic, not from .carxp parsing)
+    if (carlaRunning) {
+      const routing = await devices.discoverCarlaRoutingPorts()
+      carlaIn = routing.inputPorts
+      carlaOut = routing.outputPorts
+
+      if (!carlaIn || !carlaOut) {
+        sendToast('warning', 'Could not discover Carla routing ports. Falling back to passthrough.')
       }
-    } catch {
-      sendToast('error', 'Failed to read .carxp file')
     }
   }
 
-  // Build and apply PipeWire links
+  // 3/4. Build and apply PipeWire links
   const { inputDevice, outputDevice } = await resolveDevices()
-  const links = pipewire.buildPresetLinks(inputDevice, outputDevice, endpoints, isOff)
+  const links = pipewire.buildPresetLinks(inputDevice, outputDevice, carlaIn, carlaOut, isOff)
 
   if (links.length > 0) {
     await pipewire.connectBatch(links)
@@ -180,8 +194,7 @@ export async function activatePreset(id: string): Promise<void> {
   activeLinks = links
   activePresetId = id
 
-  // Re-establish monitor links if monitoring is active
-  // (preset switch may have disconnected the same physical PipeWire connections)
+  // 5. Re-establish monitor links if monitoring is active
   if (micMonitoring) {
     const monLinks = pipewire.buildMonitorLinks(inputDevice, outputDevice)
     await pipewire.connectBatch(monLinks)
@@ -389,8 +402,8 @@ export function registerIpcHandlers(): void {
     return ok
   })
 
-  ipcMain.handle(IPC.CARLA_STOP, () => {
-    carla.stop()
+  ipcMain.handle(IPC.CARLA_STOP, async () => {
+    await carla.stop()
   })
 
   ipcMain.handle(IPC.CARLA_IS_RUNNING, () => {

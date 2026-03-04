@@ -91,40 +91,36 @@ export function buildMonitorLinks(
 /**
  * Build the link chain for a preset.
  * - isOff: no links (disconnect everything / silence)
- * - No plugins (no .carxp): direct mic → output passthrough
- * - With plugins: mic → firstPlugin input, lastPlugin output → speaker
+ * - No carla ports (no .carxp): direct mic → output passthrough
+ * - With carla ports: mic → carlaIn, carlaOut → speaker
  *   Carla handles all internal plugin-to-plugin routing via its patchbay.
+ *
+ * carlaIn/carlaOut use full port paths discovered from PipeWire
+ * (e.g., "Calf Compressor:In L" or "Carla:audio-in1").
  */
 export function buildPresetLinks(
   inputDevice: string,
   outputDevice: string,
-  endpoints: { first: string; last: string } | null,
+  carlaIn: { left: string; right: string } | null,
+  carlaOut: { left: string; right: string } | null,
   isOff: boolean
 ): AudioLink[] {
   if (isOff) return []
 
-  if (!endpoints) {
-    // No .carxp / no plugins — direct passthrough
+  if (!carlaIn || !carlaOut) {
+    // No Carla ports available — direct passthrough
     return [
       { source: `${inputDevice}:capture_FL`, destination: `${outputDevice}:playback_FL` },
       { source: `${inputDevice}:capture_FR`, destination: `${outputDevice}:playback_FR` }
     ]
   }
 
-  const { first, last } = endpoints
-  const links: AudioLink[] = []
-
-  // Mic → first plugin
-  links.push(
-    { source: `${inputDevice}:capture_FL`, destination: `${first}:In L` },
-    { source: `${inputDevice}:capture_FR`, destination: `${first}:In R` }
-  )
-
-  // Last plugin → output
-  links.push(
-    { source: `${last}:Out L`, destination: `${outputDevice}:playback_FL` },
-    { source: `${last}:Out R`, destination: `${outputDevice}:playback_FR` }
-  )
-
-  return links
+  return [
+    // Mic → Carla input
+    { source: `${inputDevice}:capture_FL`, destination: carlaIn.left },
+    { source: `${inputDevice}:capture_FR`, destination: carlaIn.right },
+    // Carla output → speaker
+    { source: carlaOut.left, destination: `${outputDevice}:playback_FL` },
+    { source: carlaOut.right, destination: `${outputDevice}:playback_FR` }
+  ]
 }

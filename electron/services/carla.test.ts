@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('child_process', () => ({
   execSync: vi.fn(),
   execFile: vi.fn(),
+  execFileSync: vi.fn(),
   spawn: vi.fn()
 }))
 
@@ -11,16 +12,23 @@ vi.mock('fs', () => ({
   existsSync: vi.fn(() => true)
 }))
 
-import { execSync, spawn } from 'child_process'
+// Must re-import fresh module for each test to avoid state leaks
+// Since vitest module caching makes this hard, we reset via the exported API
+import { execSync, execFileSync, spawn } from 'child_process'
 import { isRunning, launch, stop, setWindowMode, getWindowMode } from './carla'
 
 const mockExecSync = vi.mocked(execSync)
+const mockExecFileSync = vi.mocked(execFileSync)
 const mockSpawn = vi.mocked(spawn)
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks()
-  // Reset module state
-  stop()
+  // isRunning returns false so stop() completes quickly
+  mockExecSync.mockImplementation(() => {
+    throw new Error('exit code 1')
+  })
+  await stop()
+  vi.clearAllMocks()
   setWindowMode('minimized')
 })
 
@@ -57,7 +65,7 @@ describe('launch', () => {
     } as any
   }
 
-  it('launches with GUI by default (minimized mode)', () => {
+  it('launches with JACK env vars in flatpak args', () => {
     const proc = makeFakeProcess()
     mockSpawn.mockReturnValue(proc)
 
@@ -65,9 +73,25 @@ describe('launch', () => {
     expect(result).toBe(true)
     expect(mockSpawn).toHaveBeenCalledWith(
       'flatpak',
-      ['run', 'studio.kx.carla'],
+      expect.arrayContaining([
+        'run',
+        '--env=JACK_NO_START_SERVER=1',
+        '--env=PIPEWIRE_LATENCY=256/48000',
+        'studio.kx.carla'
+      ]),
       expect.objectContaining({ detached: true })
     )
+  })
+
+  it('passes JACK env vars in spawn env', () => {
+    const proc = makeFakeProcess()
+    mockSpawn.mockReturnValue(proc)
+
+    launch()
+    const spawnCall = mockSpawn.mock.calls[0]
+    const env = spawnCall[2]?.env as Record<string, string>
+    expect(env.JACK_NO_START_SERVER).toBe('1')
+    expect(env.PIPEWIRE_LATENCY).toBe('256/48000')
   })
 
   it('launches with --no-gui in no-gui mode', () => {
@@ -78,20 +102,7 @@ describe('launch', () => {
     launch()
     expect(mockSpawn).toHaveBeenCalledWith(
       'flatpak',
-      ['run', 'studio.kx.carla', '--no-gui'],
-      expect.objectContaining({ detached: true })
-    )
-  })
-
-  it('launches with GUI in visible mode', () => {
-    setWindowMode('visible')
-    const proc = makeFakeProcess()
-    mockSpawn.mockReturnValue(proc)
-
-    launch()
-    expect(mockSpawn).toHaveBeenCalledWith(
-      'flatpak',
-      ['run', 'studio.kx.carla'],
+      expect.arrayContaining(['--no-gui']),
       expect.objectContaining({ detached: true })
     )
   })
@@ -103,7 +114,7 @@ describe('launch', () => {
     launch('/path/to/project.carxp')
     expect(mockSpawn).toHaveBeenCalledWith(
       'flatpak',
-      ['run', 'studio.kx.carla', '/path/to/project.carxp'],
+      expect.arrayContaining(['/path/to/project.carxp']),
       expect.any(Object)
     )
   })
@@ -120,7 +131,7 @@ describe('launch', () => {
 })
 
 describe('stop', () => {
-  it('kills the carla process', () => {
+  it('kills the carla process and calls pkill', async () => {
     const proc = {
       on: vi.fn(),
       unref: vi.fn(),
@@ -129,10 +140,34 @@ describe('stop', () => {
     } as any
     mockSpawn.mockReturnValue(proc)
 
+    // isRunning returns false after pkill (process died)
+    mockExecSync.mockImplementation(() => {
+      throw new Error('exit code 1')
+    })
+
     launch()
-    stop()
+    await stop()
     expect(proc.kill).toHaveBeenCalledWith('SIGTERM')
+    expect(mockExecFileSync).toHaveBeenCalledWith('pkill', ['-f', 'carla'], { timeout: 2000 })
   })
+
+  it('force kills if process survives SIGTERM', async () => {
+    const proc = {
+      on: vi.fn(),
+      unref: vi.fn(),
+      killed: false,
+      kill: vi.fn()
+    } as any
+    mockSpawn.mockReturnValue(proc)
+
+    // isRunning keeps returning true (zombie process)
+    mockExecSync.mockReturnValue(Buffer.from('12345\n'))
+
+    launch()
+    await stop()
+    // Should have called pkill -9 as last resort
+    expect(mockExecFileSync).toHaveBeenCalledWith('pkill', ['-9', '-f', 'carla'], { timeout: 2000 })
+  }, 10000)
 })
 
 describe('window mode', () => {

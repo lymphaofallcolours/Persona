@@ -16,6 +16,14 @@ Each entry captures a non-obvious technical decision. Record a decision when:
 
 <!-- Entries below — newest first -->
 
+## 2026-03-04 — Dynamic PipeWire port discovery instead of .carxp parsing for routing
+
+**Status:** Accepted (supersedes static .carxp endpoint parsing for routing)
+**Context:** After the .carxp refactor, Carla had zero PipeWire ports. Even if ports appeared, the routing assumed specific port names parsed from the .carxp file (e.g., "Calf Compressor:In L"). In practice, Carla may expose ports as a single "Carla" node or with different naming than the .carxp plugin names.
+**Decision:** Route based on dynamically discovered PipeWire ports rather than .carxp-parsed plugin names. New `discoverCarlaRoutingPorts()` function in devices.ts scans for new PipeWire nodes (post-baseline snapshot) and matches port names against common patterns (Calf-style "In L"/"Out R", Carla-style "audio-in1"/"audio-out2", etc.). The `buildPresetLinks()` signature changed from `endpoints: {first, last}` to `carlaIn/carlaOut: {left, right}` with full port paths. The .carxp is still validated for diagnostics (missing patchbay warning) but not used for routing decisions.
+**Alternatives rejected:** (1) Keep .carxp parsing for routing — fragile, port names may not match PipeWire client names. (2) Hardcode Carla port patterns — too brittle if Carla changes behavior.
+**Consequences:** Routing works regardless of how Carla exposes itself to PipeWire. If Carla produces no ports at all (audio driver misconfiguration), Persona warns the user clearly. Existing .carxp validation (`validateCarxp`) still useful for diagnosing missing internal patchbay wiring.
+
 ## 2026-03-04 — One .carxp per preset, remove plugin lists
 
 **Status:** Accepted (supersedes plugin-list approach)

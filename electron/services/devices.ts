@@ -79,14 +79,18 @@ export async function getOutputDevices(): Promise<AudioDevice[]> {
 let baselineNodes: Set<string> = new Set()
 
 /**
- * Capture a snapshot of all current PipeWire output nodes.
+ * Capture a snapshot of all current PipeWire nodes (both input and output).
  * Call this BEFORE launching Carla so we can diff later.
  */
 export async function snapshotBaseline(): Promise<void> {
   try {
-    const output = await exec('pw-link', ['-o'])
-    const all = parsePorts(output, 'output')
-    baselineNodes = new Set(all.map(d => d.name))
+    const [outputRaw, inputRaw] = await Promise.all([
+      exec('pw-link', ['-o']),
+      exec('pw-link', ['-i'])
+    ])
+    const outputNames = parsePorts(outputRaw, 'output').map(d => d.name)
+    const inputNames = parsePorts(inputRaw, 'input').map(d => d.name)
+    baselineNodes = new Set([...outputNames, ...inputNames])
   } catch {
     baselineNodes = new Set()
   }
@@ -104,6 +108,100 @@ export async function getCarlaPlugins(): Promise<string[]> {
   return all
     .filter(d => !baselineNodes.has(d.name))
     .map(d => d.name)
+}
+
+/**
+ * Wait for any new PipeWire port to appear after Carla launch.
+ * Returns the name of the first new node, or null on timeout.
+ */
+export async function waitForCarlaPort(timeoutMs = 15000): Promise<string | null> {
+  const start = Date.now()
+  while (Date.now() - start < timeoutMs) {
+    const plugins = await getCarlaPlugins()
+    if (plugins.length > 0) return plugins[0]
+
+    // Also check for a "Carla" system node in outputs
+    try {
+      const output = await exec('pw-link', ['-o'])
+      const all = parsePorts(output, 'output')
+      const carlaNode = all.find(d =>
+        !baselineNodes.has(d.name) && !d.name.startsWith('alsa_')
+      )
+      if (carlaNode) return carlaNode.name
+    } catch {
+      // pw-link not available yet
+    }
+
+    await new Promise(r => setTimeout(r, 500))
+  }
+  return null
+}
+
+/**
+ * Discover Carla's actual PipeWire routing ports after launch.
+ * Scans for new nodes (post-baseline) and finds input/output port pairs.
+ *
+ * Works for both:
+ * - Individual plugins visible (e.g., "Calf Compressor:In L")
+ * - Single Carla node (e.g., "Carla:audio-in1")
+ */
+export async function discoverCarlaRoutingPorts(): Promise<{
+  inputPorts: { left: string; right: string } | null
+  outputPorts: { left: string; right: string } | null
+}> {
+  const result = { inputPorts: null as { left: string; right: string } | null, outputPorts: null as { left: string; right: string } | null }
+
+  try {
+    // Find new output nodes (Carla's audio outputs we route to speaker)
+    const outputRaw = await exec('pw-link', ['-o'])
+    const outputNodes = parsePorts(outputRaw, 'output')
+      .filter(d => !baselineNodes.has(d.name) && !d.name.startsWith('alsa_'))
+
+    if (outputNodes.length > 0) {
+      const lastNode = outputNodes[outputNodes.length - 1]
+      const ports = lastNode.ports
+      // Try common port naming patterns
+      const left = findPort(ports, ['Out L', 'audio-out1', 'output_FL', 'out_1', 'Out #1'])
+      const right = findPort(ports, ['Out R', 'audio-out2', 'output_FR', 'out_2', 'Out #2'])
+      if (left && right) {
+        result.outputPorts = { left: `${lastNode.name}:${left}`, right: `${lastNode.name}:${right}` }
+      } else if (ports.length >= 2) {
+        // Fallback: use first two ports
+        result.outputPorts = { left: `${lastNode.name}:${ports[0]}`, right: `${lastNode.name}:${ports[1]}` }
+      }
+    }
+
+    // Find new input nodes (Carla's audio inputs we send mic to)
+    // Capture baseline for inputs too
+    const inputRaw = await exec('pw-link', ['-i'])
+    const inputNodes = parsePorts(inputRaw, 'input')
+      .filter(d => !baselineNodes.has(d.name) && !d.name.startsWith('alsa_'))
+
+    if (inputNodes.length > 0) {
+      const firstNode = inputNodes[0]
+      const ports = firstNode.ports
+      const left = findPort(ports, ['In L', 'audio-in1', 'input_FL', 'in_1', 'In #1'])
+      const right = findPort(ports, ['In R', 'audio-in2', 'input_FR', 'in_2', 'In #2'])
+      if (left && right) {
+        result.inputPorts = { left: `${firstNode.name}:${left}`, right: `${firstNode.name}:${right}` }
+      } else if (ports.length >= 2) {
+        result.inputPorts = { left: `${firstNode.name}:${ports[0]}`, right: `${firstNode.name}:${ports[1]}` }
+      }
+    }
+  } catch {
+    // PipeWire not available
+  }
+
+  return result
+}
+
+/** Find a port matching any of the candidate names (case-insensitive) */
+function findPort(ports: string[], candidates: string[]): string | null {
+  for (const candidate of candidates) {
+    const match = ports.find(p => p.toLowerCase() === candidate.toLowerCase())
+    if (match) return match
+  }
+  return null
 }
 
 /**

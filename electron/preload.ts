@@ -36,6 +36,9 @@ export interface PersonaAPI {
   toast: {
     onShow(callback: (toast: Toast) => void): () => void
   }
+  miniPanel: {
+    toggle(): Promise<void>
+  }
 }
 
 const api: PersonaAPI = {
@@ -81,6 +84,9 @@ const api: PersonaAPI = {
       ipcRenderer.on(IPC.TOAST, handler)
       return () => ipcRenderer.removeListener(IPC.TOAST, handler)
     }
+  },
+  miniPanel: {
+    toggle: () => ipcRenderer.invoke('mini-panel:toggle')
   }
 }
 

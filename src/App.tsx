@@ -6,8 +6,17 @@ import { DeviceSelector } from './components/DeviceSelector'
 import { StatusBar } from './components/StatusBar'
 import { CarlaControls } from './components/CarlaControls'
 import { ToastContainer } from './components/Toast'
+import { MiniPanel } from './components/MiniPanel'
+
+const isMini = new URLSearchParams(window.location.search).has('mini')
 
 export default function App() {
+  if (isMini) return <MiniPanel />
+
+  return <MainApp />
+}
+
+function MainApp() {
   const [presets, setPresets] = useState<Preset[]>([])
   const [status, setStatus] = useState<AppStatus>({
     activePresetId: null,
@@ -16,7 +25,6 @@ export default function App() {
     linksActive: 0
   })
   const [editingPreset, setEditingPreset] = useState<Preset | null | undefined>(undefined)
-  // undefined = closed, null = new preset, Preset = editing existing
 
   const refreshPresets = useCallback(() => {
     window.persona.presets.getAll().then(setPresets)
@@ -33,28 +41,22 @@ export default function App() {
     await window.persona.presets.activate(id)
   }
 
-  const handleNewPreset = () => {
-    setEditingPreset(null)
-  }
-
-  const handleEditPreset = (preset: Preset) => {
-    setEditingPreset(preset)
-  }
+  const handleNewPreset = () => setEditingPreset(null)
+  const handleEditPreset = (preset: Preset) => setEditingPreset(preset)
+  const handleCancelEdit = () => setEditingPreset(undefined)
 
   const handleSavePreset = async (data: { name: string; color: string; plugins: string[] }) => {
     if (editingPreset === null) {
-      // Creating new
       await window.persona.presets.create(data.name, data.color, data.plugins)
     } else if (editingPreset) {
-      // Editing existing
       await window.persona.presets.update(editingPreset.id, data)
     }
     setEditingPreset(undefined)
     refreshPresets()
   }
 
-  const handleCancelEdit = () => {
-    setEditingPreset(undefined)
+  const handleToggleMini = () => {
+    window.persona.miniPanel.toggle()
   }
 
   return (
@@ -64,7 +66,16 @@ export default function App() {
           <h1 className="text-sm font-bold tracking-widest text-zinc-400 uppercase">
             Persona
           </h1>
-          <CarlaControls status={status} />
+          <div className="flex items-center gap-3">
+            <CarlaControls status={status} />
+            <button
+              onClick={handleToggleMini}
+              title="Toggle mini panel"
+              className="px-2 py-0.5 rounded text-[10px] bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600"
+            >
+              Mini
+            </button>
+          </div>
         </div>
         <DeviceSelector />
       </header>

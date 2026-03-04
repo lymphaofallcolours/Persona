@@ -31,7 +31,12 @@ function getStatus(): AppStatus {
 }
 
 function broadcastStatus(): void {
-  broadcast(IPC.STATUS_CHANGED, getStatus())
+  const status = getStatus()
+  broadcast(IPC.STATUS_CHANGED, status)
+  // Also notify tray
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send('__status-for-tray', status.activePresetId)
+  }
 }
 
 export function sendToast(type: ToastType, message: string): void {
@@ -85,6 +90,51 @@ async function pollDevices(): Promise<void> {
   }
 }
 
+export async function activatePreset(id: string): Promise<void> {
+  const preset = presetStore.getPreset(id)
+  if (!preset) throw new Error(`Preset not found: ${id}`)
+
+  if (activeLinks.length > 0) {
+    await pipewire.disconnectBatch(activeLinks)
+    activeLinks = []
+  }
+
+  const isOff = preset.name === 'Off' && preset.plugins.length === 0
+  const hasPlugins = preset.plugins.length > 0
+
+  if (hasPlugins && !carlaRunning) {
+    const launched = carla.launch(preset.carxpPath)
+    if (launched) {
+      sendToast('info', 'Starting Carla...')
+      for (let i = 0; i < 20; i++) {
+        await new Promise(r => setTimeout(r, 500))
+        const plugins = await devices.getCarlaPlugins()
+        if (plugins.length > 0) {
+          carlaPlugins = plugins
+          carlaRunning = true
+          break
+        }
+      }
+      if (carlaPlugins.length === 0) {
+        sendToast('warning', 'Carla started but no plugins detected yet. The preset may not work correctly.')
+      }
+    } else {
+      sendToast('error', 'Failed to launch Carla. Install it via: flatpak install studio.kx.carla')
+    }
+  }
+
+  const { inputDevice, outputDevice } = await resolveDevices()
+  const links = pipewire.buildPresetLinks(inputDevice, outputDevice, preset.plugins, isOff)
+
+  if (links.length > 0) {
+    await pipewire.connectBatch(links)
+  }
+
+  activeLinks = links
+  activePresetId = id
+  broadcastStatus()
+}
+
 export function registerIpcHandlers(): void {
   // --- Carla lifecycle ---
 
@@ -112,52 +162,7 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle(IPC.PRESET_ACTIVATE, async (_event, id: string) => {
-    const preset = presetStore.getPreset(id)
-    if (!preset) throw new Error(`Preset not found: ${id}`)
-
-    // Disconnect current links
-    if (activeLinks.length > 0) {
-      await pipewire.disconnectBatch(activeLinks)
-      activeLinks = []
-    }
-
-    const isOff = preset.name === 'Off' && preset.plugins.length === 0
-    const hasPlugins = preset.plugins.length > 0
-
-    // Auto-start Carla if needed
-    if (hasPlugins && !carlaRunning) {
-      const launched = carla.launch(preset.carxpPath)
-      if (launched) {
-        sendToast('info', 'Starting Carla...')
-        // Wait for plugins to appear (up to 10s)
-        for (let i = 0; i < 20; i++) {
-          await new Promise(r => setTimeout(r, 500))
-          const plugins = await devices.getCarlaPlugins()
-          if (plugins.length > 0) {
-            carlaPlugins = plugins
-            carlaRunning = true
-            break
-          }
-        }
-
-        if (carlaPlugins.length === 0) {
-          sendToast('warning', 'Carla started but no plugins detected yet. The preset may not work correctly.')
-        }
-      } else {
-        sendToast('error', 'Failed to launch Carla. Install it via: flatpak install studio.kx.carla')
-      }
-    }
-
-    const { inputDevice, outputDevice } = await resolveDevices()
-    const links = pipewire.buildPresetLinks(inputDevice, outputDevice, preset.plugins, isOff)
-
-    if (links.length > 0) {
-      await pipewire.connectBatch(links)
-    }
-
-    activeLinks = links
-    activePresetId = id
-    broadcastStatus()
+    await activatePreset(id)
   })
 
   ipcMain.handle(IPC.PRESET_CREATE, (_event, name: string, color: string, plugins: string[]) => {

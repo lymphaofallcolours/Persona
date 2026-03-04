@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Preset, PresetGroup, AppStatus, SessionProfile } from './types'
 import { PresetPanel } from './components/PresetPanel'
 import { PresetEditor } from './components/PresetEditor'
@@ -33,6 +33,7 @@ function MainApp() {
   const [sessions, setSessions] = useState<SessionProfile[]>([])
   const [sessionMenuOpen, setSessionMenuOpen] = useState(false)
   const [savingSessionName, setSavingSessionName] = useState<string | null>(null)
+  const sessionMenuRef = useRef<HTMLDivElement>(null)
   const [editingPreset, setEditingPreset] = useState<Preset | null | undefined>(undefined)
 
   const refreshPresets = useCallback(() => {
@@ -47,6 +48,19 @@ function MainApp() {
     const unsubscribe = window.persona.status.onChange(setStatus)
     return unsubscribe
   }, [refreshPresets])
+
+  // Close session menu on click outside
+  useEffect(() => {
+    if (!sessionMenuOpen) return
+    const handleClick = (e: MouseEvent) => {
+      if (sessionMenuRef.current && !sessionMenuRef.current.contains(e.target as Node)) {
+        setSessionMenuOpen(false)
+        setSavingSessionName(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [sessionMenuOpen])
 
   const handleActivate = async (id: string) => {
     await window.persona.presets.activate(id)
@@ -82,7 +96,10 @@ function MainApp() {
   }
 
   const handleSaveSession = async () => {
-    if (!savingSessionName?.trim()) return
+    if (!savingSessionName?.trim()) {
+      setSavingSessionName(null)
+      return
+    }
     await window.persona.sessions.save(savingSessionName.trim(), status.activePresetId, selectedGroupId)
     setSavingSessionName(null)
     setSessionMenuOpen(false)
@@ -116,7 +133,7 @@ function MainApp() {
           </h1>
           <div className="flex items-center gap-3">
             <CarlaControls status={status} />
-            <div className="relative">
+            <div className="relative" ref={sessionMenuRef}>
               <button
                 onClick={() => setSessionMenuOpen(!sessionMenuOpen)}
                 title="Session profiles"

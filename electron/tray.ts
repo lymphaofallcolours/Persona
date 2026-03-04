@@ -35,19 +35,62 @@ export function updateTrayMenu(activePresetId: string | null): void {
   if (!tray) return
 
   const presets = presetStore.getPresets()
+  const groups = presetStore.getGroups()
   const activePreset = presets.find(p => p.id === activePresetId)
 
   tray.setToolTip(activePreset ? `Persona — ${activePreset.name}` : 'Persona')
 
-  const presetItems: Electron.MenuItemConstructorOptions[] = presets.map(p => ({
-    label: p.name,
-    type: 'radio' as const,
-    checked: p.id === activePresetId,
-    click: () => activateCallback?.(p.id)
-  }))
+  const items: Electron.MenuItemConstructorOptions[] = []
+
+  // Hotbar presets at top with Ctrl+N shortcut hints
+  const hotbar = presetStore.getHotbarPresets()
+  if (hotbar.length > 0) {
+    for (const p of hotbar) {
+      items.push({
+        label: `${p.name}`,
+        accelerator: `CommandOrControl+${p.hotbarSlot}`,
+        type: 'radio' as const,
+        checked: p.id === activePresetId,
+        click: () => activateCallback?.(p.id)
+      })
+    }
+    items.push({ type: 'separator' })
+  }
+
+  // Group presets by group (sorted), then ungrouped
+  const sortedGroups = [...groups].sort((a, b) => a.order - b.order)
+  const hotbarIds = new Set(hotbar.map(p => p.id))
+
+  for (const group of sortedGroups) {
+    const groupPresets = presets.filter(p => p.groupId === group.id && !hotbarIds.has(p.id))
+    if (groupPresets.length === 0) continue
+
+    items.push({
+      label: group.name,
+      submenu: groupPresets.map(p => ({
+        label: p.name,
+        type: 'radio' as const,
+        checked: p.id === activePresetId,
+        click: () => activateCallback?.(p.id)
+      }))
+    })
+  }
+
+  // Ungrouped presets not in hotbar
+  const ungrouped = presets.filter(p => !p.groupId && !hotbarIds.has(p.id))
+  if (ungrouped.length > 0) {
+    for (const p of ungrouped) {
+      items.push({
+        label: p.name,
+        type: 'radio' as const,
+        checked: p.id === activePresetId,
+        click: () => activateCallback?.(p.id)
+      })
+    }
+  }
 
   const menu = Menu.buildFromTemplate([
-    ...presetItems,
+    ...items,
     { type: 'separator' },
     { label: 'Open Persona', click: () => showWindowCallback?.() },
     { type: 'separator' },

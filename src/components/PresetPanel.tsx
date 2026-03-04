@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { Preset, PresetGroup } from '../types'
 
 interface PresetPanelProps {
@@ -37,6 +37,19 @@ export function PresetPanel({
   const [editingGroupName, setEditingGroupName] = useState('')
   const dragIndex = useRef<number | null>(null)
   const dragOverIndex = useRef<number | null>(null)
+
+  // Close menus on click outside or Escape
+  useEffect(() => {
+    if (!contextMenu && !groupContextMenu) return
+    const handleClick = () => closeContextMenu()
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeContextMenu() }
+    document.addEventListener('mousedown', handleClick)
+    document.addEventListener('keydown', handleKey)
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+      document.removeEventListener('keydown', handleKey)
+    }
+  }, [contextMenu, groupContextMenu])
 
   // Filter presets by selected group
   const filteredPresets = selectedGroupId === null
@@ -346,6 +359,7 @@ export function PresetPanel({
         <div
           className="fixed z-50"
           style={{ left: contextMenu.x, top: contextMenu.y }}
+          onMouseDown={(e) => e.stopPropagation()}
         >
           <div className="bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1 min-w-[160px] text-xs">
             <button
@@ -431,6 +445,7 @@ export function PresetPanel({
         <div
           className="fixed z-50"
           style={{ left: groupContextMenu.x, top: groupContextMenu.y }}
+          onMouseDown={(e) => e.stopPropagation()}
         >
           <div className="bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1 min-w-[120px] text-xs">
             <button

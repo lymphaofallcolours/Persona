@@ -90,43 +90,37 @@ export function buildMonitorLinks(
 
 /**
  * Build the link chain for a preset.
- * - Empty plugins + name "Off": no links (disconnect everything)
- * - Empty plugins: direct mic → output passthrough
- * - With plugins: mic → plugin1 → plugin2 → ... → output
+ * - isOff: no links (disconnect everything / silence)
+ * - No plugins (no .carxp): direct mic → output passthrough
+ * - With plugins: mic → firstPlugin input, lastPlugin output → speaker
+ *   Carla handles all internal plugin-to-plugin routing via its patchbay.
  */
 export function buildPresetLinks(
   inputDevice: string,
   outputDevice: string,
-  plugins: string[],
+  endpoints: { first: string; last: string } | null,
   isOff: boolean
 ): AudioLink[] {
   if (isOff) return []
 
-  if (plugins.length === 0) {
+  if (!endpoints) {
+    // No .carxp / no plugins — direct passthrough
     return [
       { source: `${inputDevice}:capture_FL`, destination: `${outputDevice}:playback_FL` },
       { source: `${inputDevice}:capture_FR`, destination: `${outputDevice}:playback_FR` }
     ]
   }
 
+  const { first, last } = endpoints
   const links: AudioLink[] = []
 
   // Mic → first plugin
   links.push(
-    { source: `${inputDevice}:capture_FL`, destination: `${plugins[0]}:In L` },
-    { source: `${inputDevice}:capture_FR`, destination: `${plugins[0]}:In R` }
+    { source: `${inputDevice}:capture_FL`, destination: `${first}:In L` },
+    { source: `${inputDevice}:capture_FR`, destination: `${first}:In R` }
   )
 
-  // Plugin chain
-  for (let i = 0; i < plugins.length - 1; i++) {
-    links.push(
-      { source: `${plugins[i]}:Out L`, destination: `${plugins[i + 1]}:In L` },
-      { source: `${plugins[i]}:Out R`, destination: `${plugins[i + 1]}:In R` }
-    )
-  }
-
   // Last plugin → output
-  const last = plugins[plugins.length - 1]
   links.push(
     { source: `${last}:Out L`, destination: `${outputDevice}:playback_FL` },
     { source: `${last}:Out R`, destination: `${outputDevice}:playback_FR` }

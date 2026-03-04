@@ -5,9 +5,10 @@ import * as pipewire from '../services/pipewire'
 import * as devices from '../services/devices'
 import * as carla from '../services/carla'
 import * as carlaOsc from '../services/carlaOsc'
+import { getCarxpEndpoints } from '../services/carxp'
 import type { AudioLink } from '../services/pipewire'
-import { readFileSync, writeFileSync } from 'fs'
-import type { AppStatus, AudioDevice, Toast, ToastType, ParameterSnapshot, PersonaExport, SessionProfile } from '../../src/types'
+import { readFileSync, writeFileSync, existsSync } from 'fs'
+import type { AppStatus, AudioDevice, Toast, ToastType, PersonaExport, SessionProfile } from '../../src/types'
 
 let activePresetId: string | null = null
 let activeLinks: AudioLink[] = []
@@ -101,16 +102,19 @@ export async function activatePreset(id: string): Promise<void> {
   const preset = presetStore.getPreset(id)
   if (!preset) throw new Error(`Preset not found: ${id}`)
 
+  // Disconnect any existing links
   if (activeLinks.length > 0) {
     await pipewire.disconnectBatch(activeLinks)
     activeLinks = []
   }
 
-  const isOff = preset.name === 'Off' && preset.plugins.length === 0
-  const hasPlugins = preset.plugins.length > 0
+  const isOff = preset.name === 'Off' && !preset.carxpPath
+  const hasCarxp = preset.carxpPath && existsSync(preset.carxpPath)
   const sameCarxp = preset.carxpPath === currentCarxpPath || (!preset.carxpPath && !currentCarxpPath)
 
-  if (hasPlugins) {
+  let endpoints: { first: string; last: string } | null = null
+
+  if (hasCarxp) {
     const needsRestart = carlaRunning && !sameCarxp
     const needsStart = !carlaRunning
 
@@ -143,7 +147,7 @@ export async function activatePreset(id: string): Promise<void> {
         if (carlaPlugins.length === 0) {
           sendToast('warning', 'Carla started but no plugins detected yet. The preset may not work correctly.')
         }
-        // Connect OSC after Carla is ready (plugins visible)
+        // Connect OSC after Carla is ready
         try {
           carlaOsc.connect()
         } catch {
@@ -153,10 +157,21 @@ export async function activatePreset(id: string): Promise<void> {
         sendToast('error', 'Failed to launch Carla. Install it via: flatpak install studio.kx.carla')
       }
     }
+
+    // Parse .carxp to find first/last plugin for PipeWire routing
+    try {
+      endpoints = getCarxpEndpoints(preset.carxpPath!)
+      if (!endpoints) {
+        sendToast('warning', 'No plugins found in .carxp file')
+      }
+    } catch {
+      sendToast('error', 'Failed to read .carxp file')
+    }
   }
 
+  // Build and apply PipeWire links
   const { inputDevice, outputDevice } = await resolveDevices()
-  const links = pipewire.buildPresetLinks(inputDevice, outputDevice, preset.plugins, isOff)
+  const links = pipewire.buildPresetLinks(inputDevice, outputDevice, endpoints, isOff)
 
   if (links.length > 0) {
     await pipewire.connectBatch(links)
@@ -165,23 +180,10 @@ export async function activatePreset(id: string): Promise<void> {
   activeLinks = links
   activePresetId = id
 
-  // Apply parameter snapshots via OSC (instant — no Carla restart needed)
-  if (preset.parameterSnapshots && preset.parameterSnapshots.length > 0 && carlaOsc.isConnected()) {
-    try {
-      for (const snap of preset.parameterSnapshots) {
-        for (const param of snap.parameters) {
-          await carlaOsc.setParameterValue(snap.pluginId, param.index, param.value)
-        }
-      }
-    } catch {
-      sendToast('warning', 'Some parameters could not be restored via OSC')
-    }
-  }
-
   // Apply per-preset volume via OSC
-  if (preset.volume !== undefined && preset.volume !== 1.0 && carlaOsc.isConnected()) {
+  if (preset.volume !== undefined && preset.volume !== 1.0 && carlaOsc.isConnected() && carlaPlugins.length > 0) {
     try {
-      for (let i = 0; i < preset.plugins.length; i++) {
+      for (let i = 0; i < carlaPlugins.length; i++) {
         await carlaOsc.setVolume(i, preset.volume)
       }
     } catch {
@@ -222,12 +224,13 @@ export function registerIpcHandlers(): void {
     await activatePreset(id)
   })
 
-  ipcMain.handle(IPC.PRESET_CREATE, (_event, name: string, color: string, plugins: string[], carxpPath?: string) => {
-    const preset = presetStore.createPreset(name, color, plugins)
+  ipcMain.handle(IPC.PRESET_CREATE, (_event, name: string, color: string, carxpPath?: string) => {
+    const preset = presetStore.createPreset(name, color)
     if (carxpPath) {
       presetStore.updatePreset(preset.id, { carxpPath })
+      return { ...preset, carxpPath }
     }
-    return carxpPath ? { ...preset, carxpPath } : preset
+    return preset
   })
 
   ipcMain.handle(IPC.PRESET_UPDATE, (_event, id: string, updates: Record<string, unknown>) => {
@@ -329,10 +332,8 @@ export function registerIpcHandlers(): void {
     const session = presetStore.getSession(id)
     if (!session) return null
 
-    // Apply device selection
     presetStore.setSelectedDevices(session.selectedInput, session.selectedOutput)
 
-    // Activate preset if one was saved
     if (session.activePresetId) {
       try {
         await activatePreset(session.activePresetId)
@@ -372,12 +373,6 @@ export function registerIpcHandlers(): void {
     presetStore.setSelectedDevices(input, output)
   })
 
-  // --- Plugins ---
-
-  ipcMain.handle(IPC.PLUGINS_GET_AVAILABLE, async () => {
-    return devices.getCarlaPlugins()
-  })
-
   // --- Carla ---
 
   ipcMain.handle(IPC.CARLA_LAUNCH, (_event, projectFile?: string) => {
@@ -408,14 +403,12 @@ export function registerIpcHandlers(): void {
     const { inputDevice, outputDevice } = await resolveDevices()
 
     if (micMonitoring) {
-      // Turn off: disconnect monitor links
       if (monitorLinks.length > 0) {
         await pipewire.disconnectBatch(monitorLinks)
         monitorLinks = []
       }
       micMonitoring = false
     } else {
-      // Turn on: create direct mic→output links
       const links = pipewire.buildMonitorLinks(inputDevice, outputDevice)
       await pipewire.connectBatch(links)
       monitorLinks = links
@@ -474,18 +467,6 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.OSC_SET_VOLUME, async (_event, pluginId: number, value: number) => {
     await carlaOsc.setVolume(pluginId, value)
-  })
-
-  ipcMain.handle(IPC.OSC_SNAPSHOT_RESTORE, async (_event, snapshots: ParameterSnapshot[]) => {
-    if (!carlaOsc.isConnected()) {
-      sendToast('warning', 'OSC not connected — cannot restore parameters')
-      return
-    }
-    for (const snap of snapshots) {
-      for (const param of snap.parameters) {
-        await carlaOsc.setParameterValue(snap.pluginId, param.index, param.value)
-      }
-    }
   })
 
   // --- Status ---

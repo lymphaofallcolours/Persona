@@ -31,9 +31,6 @@ export const IPC = {
   DEVICES_SET_SELECTED: 'devices:set-selected',
   DEVICES_CHANGED: 'devices:changed',
 
-  // Plugins (available in PipeWire)
-  PLUGINS_GET_AVAILABLE: 'plugins:get-available',
-
   // Carla
   CARLA_LAUNCH: 'carla:launch',
   CARLA_STOP: 'carla:stop',
@@ -57,8 +54,6 @@ export const IPC = {
   OSC_SET_PLUGIN_ACTIVE: 'osc:set-plugin-active',
   OSC_SET_DRYWET: 'osc:set-drywet',
   OSC_SET_VOLUME: 'osc:set-volume',
-  OSC_SNAPSHOT_SAVE: 'osc:snapshot-save',
-  OSC_SNAPSHOT_RESTORE: 'osc:snapshot-restore',
 
   // Status
   STATUS_GET: 'status:get',

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import type { Preset, PresetGroup } from '../types'
 
 const PRESET_COLORS = [
@@ -10,7 +10,7 @@ interface PresetEditorProps {
   preset?: Preset | null
   groups: PresetGroup[]
   onSave: (data: {
-    name: string; color: string; plugins: string[];
+    name: string; color: string;
     carxpPath?: string; groupId?: string; volume?: number; hotbarSlot?: number
   }) => void
   onCancel: () => void
@@ -19,50 +19,10 @@ interface PresetEditorProps {
 export function PresetEditor({ preset, groups, onSave, onCancel }: PresetEditorProps) {
   const [name, setName] = useState(preset?.name ?? '')
   const [color, setColor] = useState(preset?.color ?? PRESET_COLORS[0])
-  const [plugins, setPlugins] = useState<string[]>(preset?.plugins ?? [])
   const [carxpPath, setCarxpPath] = useState<string | undefined>(preset?.carxpPath)
   const [groupId, setGroupId] = useState<string | undefined>(preset?.groupId)
   const [volume, setVolume] = useState<number>(preset?.volume ?? 1.0)
   const [hotbarSlot, setHotbarSlot] = useState<number | undefined>(preset?.hotbarSlot)
-  const [available, setAvailable] = useState<string[]>([])
-  const dragIndex = useRef<number | null>(null)
-  const dragOverIndex = useRef<number | null>(null)
-
-  useEffect(() => {
-    window.persona.plugins.getAvailable().then(setAvailable)
-  }, [])
-
-  const addPlugin = (plugin: string) => {
-    setPlugins((prev) => [...prev, plugin])
-  }
-
-  const removePlugin = (index: number) => {
-    setPlugins((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  const handleDragStart = (index: number) => {
-    dragIndex.current = index
-  }
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault()
-    dragOverIndex.current = index
-  }
-
-  const handleDrop = () => {
-    if (dragIndex.current === null || dragOverIndex.current === null) return
-    if (dragIndex.current === dragOverIndex.current) return
-
-    setPlugins((prev) => {
-      const next = [...prev]
-      const [moved] = next.splice(dragIndex.current!, 1)
-      next.splice(dragOverIndex.current!, 0, moved)
-      return next
-    })
-
-    dragIndex.current = null
-    dragOverIndex.current = null
-  }
 
   const handleBrowseCarxp = async () => {
     const path = await window.persona.dialog.openFile([
@@ -75,14 +35,12 @@ export function PresetEditor({ preset, groups, onSave, onCancel }: PresetEditorP
     const trimmed = name.trim()
     if (!trimmed) return
     onSave({
-      name: trimmed, color, plugins, carxpPath, groupId,
+      name: trimmed, color, carxpPath, groupId,
       volume: volume !== 1.0 ? volume : undefined,
       hotbarSlot
     })
   }
 
-  // Plugins available to add (not already in chain)
-  const addable = available.filter((p) => !plugins.includes(p))
   const sortedGroups = [...groups].sort((a, b) => a.order - b.order)
 
   return (
@@ -132,6 +90,42 @@ export function PresetEditor({ preset, groups, onSave, onCancel }: PresetEditorP
                 />
               ))}
             </div>
+          </div>
+
+          {/* Carla project file */}
+          <div>
+            <label className="block text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
+              Carla Project File (.carxp)
+            </label>
+            {carxpPath ? (
+              <div className="flex items-center gap-2 bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-300">
+                <span className="flex-1 truncate" title={carxpPath}>
+                  {carxpPath.split('/').pop()}
+                </span>
+                <button
+                  onClick={handleBrowseCarxp}
+                  className="shrink-0 text-zinc-500 hover:text-zinc-300 text-[10px]"
+                >
+                  Change
+                </button>
+                <button
+                  onClick={() => setCarxpPath(undefined)}
+                  className="shrink-0 text-zinc-600 hover:text-red-400 text-sm leading-none"
+                >
+                  x
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleBrowseCarxp}
+                className="w-full text-left bg-zinc-800 border border-zinc-700 border-dashed rounded px-2 py-1.5 text-xs text-zinc-500 hover:text-zinc-300 hover:border-zinc-500 transition-colors"
+              >
+                + Browse for .carxp file...
+              </button>
+            )}
+            <p className="text-[10px] text-zinc-600 mt-1">
+              Create .carxp files in Carla (File &gt; Save As). Without a project file, the preset passes audio through directly.
+            </p>
           </div>
 
           {/* Group + Hotbar row */}
@@ -187,105 +181,6 @@ export function PresetEditor({ preset, groups, onSave, onCancel }: PresetEditorP
               <span>100%</span>
               <span>127%</span>
             </div>
-          </div>
-
-          {/* Plugin chain */}
-          <div>
-            <label className="block text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
-              Plugin Chain ({plugins.length})
-            </label>
-
-            {plugins.length === 0 ? (
-              <p className="text-xs text-zinc-600 italic py-2">
-                No plugins — direct passthrough (mic to output)
-              </p>
-            ) : (
-              <div className="space-y-1">
-                {plugins.map((plugin, i) => (
-                  <div
-                    key={`${plugin}-${i}`}
-                    draggable
-                    onDragStart={() => handleDragStart(i)}
-                    onDragOver={(e) => handleDragOver(e, i)}
-                    onDrop={handleDrop}
-                    className="flex items-center gap-2 bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-300 cursor-grab active:cursor-grabbing hover:border-zinc-600"
-                  >
-                    <span className="text-zinc-600 text-[10px] w-4 text-right shrink-0">
-                      {i + 1}
-                    </span>
-                    <span className="text-zinc-500 select-none">&#x2261;</span>
-                    <span className="flex-1 truncate">{plugin}</span>
-                    <button
-                      onClick={() => removePlugin(i)}
-                      className="shrink-0 text-zinc-600 hover:text-red-400 text-sm leading-none"
-                    >
-                      x
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Add plugin */}
-            {addable.length > 0 && (
-              <div className="mt-2">
-                <select
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      addPlugin(e.target.value)
-                      e.target.value = ''
-                    }
-                  }}
-                  defaultValue=""
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-400 focus:outline-none focus:border-zinc-500"
-                >
-                  <option value="" disabled>
-                    + Add plugin...
-                  </option>
-                  {addable.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-
-          {/* Carla project file */}
-          <div>
-            <label className="block text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
-              Carla Project File
-            </label>
-            {carxpPath ? (
-              <div className="flex items-center gap-2 bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-300">
-                <span className="flex-1 truncate" title={carxpPath}>
-                  {carxpPath.split('/').pop()}
-                </span>
-                <button
-                  onClick={handleBrowseCarxp}
-                  className="shrink-0 text-zinc-500 hover:text-zinc-300 text-[10px]"
-                >
-                  Change
-                </button>
-                <button
-                  onClick={() => setCarxpPath(undefined)}
-                  className="shrink-0 text-zinc-600 hover:text-red-400 text-sm leading-none"
-                >
-                  x
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={handleBrowseCarxp}
-                className="w-full text-left bg-zinc-800 border border-zinc-700 border-dashed rounded px-2 py-1.5 text-xs text-zinc-500 hover:text-zinc-300 hover:border-zinc-500 transition-colors"
-              >
-                + Browse for .carxp file...
-              </button>
-            )}
-            <p className="text-[10px] text-zinc-600 mt-1">
-              Optional. Carla will load this project when the preset is activated.
-            </p>
           </div>
         </div>
 

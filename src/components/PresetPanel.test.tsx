@@ -5,9 +5,9 @@ import { PresetPanel } from './PresetPanel'
 import type { Preset } from '../types'
 
 const mockPresets: Preset[] = [
-  { id: '1', name: 'Normal', color: '#4488ff', plugins: [], isFactory: true },
-  { id: '2', name: 'Techpriest', color: '#cc3333', plugins: ['Calf Compressor', 'Calf Reverb'], isFactory: true },
-  { id: '3', name: 'Custom', color: '#33cc33', plugins: ['Calf EQ'], isFactory: false }
+  { id: '1', name: 'Off', color: '#666666', isFactory: true },
+  { id: '2', name: 'Techpriest', color: '#cc3333', carxpPath: '/home/user/dark-voice.carxp', isFactory: false },
+  { id: '3', name: 'Custom', color: '#33cc33', isFactory: false }
 ]
 
 // Mock the IPC bridge
@@ -52,7 +52,7 @@ describe('PresetPanel', () => {
 
   it('renders all presets as buttons', () => {
     render(<PresetPanel {...defaultProps} />)
-    expect(screen.getByText('Normal')).toBeTruthy()
+    expect(screen.getByText('Off')).toBeTruthy()
     expect(screen.getByText('Techpriest')).toBeTruthy()
     expect(screen.getByText('Custom')).toBeTruthy()
   })
@@ -62,10 +62,9 @@ describe('PresetPanel', () => {
     expect(screen.getByText('+ New Preset')).toBeTruthy()
   })
 
-  it('shows plugin count for presets with plugins', () => {
+  it('shows .carxp filename for presets with carxpPath', () => {
     render(<PresetPanel {...defaultProps} />)
-    expect(screen.getByText('2 plugins')).toBeTruthy()
-    expect(screen.getByText('1 plugin')).toBeTruthy()
+    expect(screen.getByText('dark-voice')).toBeTruthy()
   })
 
   it('calls onActivate when clicking a preset', () => {
@@ -90,7 +89,7 @@ describe('PresetPanel', () => {
 
   it('hides delete option for factory presets', () => {
     render(<PresetPanel {...defaultProps} />)
-    fireEvent.contextMenu(screen.getByText('Normal'))
+    fireEvent.contextMenu(screen.getByText('Off'))
     expect(screen.getByText('Edit')).toBeTruthy()
     expect(screen.getByText('Duplicate')).toBeTruthy()
     expect(screen.queryByText('Delete')).toBeNull()

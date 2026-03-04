@@ -7,7 +7,6 @@ import { DeviceSelector } from './components/DeviceSelector'
 import { StatusBar } from './components/StatusBar'
 import { CarlaControls } from './components/CarlaControls'
 import { ToastContainer } from './components/Toast'
-import { ParameterPanel } from './components/ParameterPanel'
 import { MiniPanel } from './components/MiniPanel'
 
 const isMini = new URLSearchParams(window.location.search).has('mini')
@@ -71,11 +70,11 @@ function MainApp() {
   const handleCancelEdit = () => setEditingPreset(undefined)
 
   const handleSavePreset = async (data: {
-    name: string; color: string; plugins: string[];
+    name: string; color: string;
     carxpPath?: string; groupId?: string; volume?: number; hotbarSlot?: number
   }) => {
     if (editingPreset === null) {
-      const created = await window.persona.presets.create(data.name, data.color, data.plugins, data.carxpPath)
+      const created = await window.persona.presets.create(data.name, data.color, data.carxpPath)
       if (data.groupId || data.volume !== undefined || data.hotbarSlot !== undefined) {
         await window.persona.presets.update(created.id, {
           groupId: data.groupId,
@@ -87,11 +86,6 @@ function MainApp() {
       await window.persona.presets.update(editingPreset.id, data)
     }
     setEditingPreset(undefined)
-    refreshPresets()
-  }
-
-  const handleSaveSnapshot = async (presetId: string, snapshots: import('./types').ParameterSnapshot[]) => {
-    await window.persona.presets.update(presetId, { parameterSnapshots: snapshots })
     refreshPresets()
   }
 
@@ -219,11 +213,6 @@ function MainApp() {
         />
       </main>
 
-      <ParameterPanel
-        status={status}
-        activePreset={presets.find(p => p.id === status.activePresetId)}
-        onSaveSnapshot={handleSaveSnapshot}
-      />
       <StatusBar status={status} presets={presets} />
       <ToastContainer />
 

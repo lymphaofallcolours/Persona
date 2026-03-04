@@ -36,9 +36,7 @@ export interface Preset {
   id: string
   name: string
   color: string
-  plugins: string[]
   carxpPath?: string
-  parameterSnapshots?: ParameterSnapshot[]
   groupId?: string
   volume?: number
   hotbarSlot?: number

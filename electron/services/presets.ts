@@ -32,6 +32,14 @@ function migrateConfig(config: any): PresetConfig {
     config.version = 2
     config.groups = config.groups || []
   }
+  if (config.version === 2) {
+    config.version = 3
+    // Remove plugins array — presets now use .carxp files exclusively
+    for (const preset of config.presets) {
+      delete preset.plugins
+      delete preset.parameterSnapshots
+    }
+  }
   if (!config.groups) {
     config.groups = []
   }
@@ -72,13 +80,12 @@ export function getPreset(id: string): Preset | undefined {
   return loadConfig().presets.find(p => p.id === id)
 }
 
-export function createPreset(name: string, color: string, plugins: string[]): Preset {
+export function createPreset(name: string, color: string): Preset {
   const config = loadConfig()
   const preset: Preset = {
     id: uuidv4(),
     name,
     color,
-    plugins,
     isFactory: false
   }
   config.presets.push(preset)
@@ -86,7 +93,7 @@ export function createPreset(name: string, color: string, plugins: string[]): Pr
   return preset
 }
 
-export function updatePreset(id: string, updates: Partial<Pick<Preset, 'name' | 'color' | 'plugins' | 'carxpPath' | 'groupId' | 'volume' | 'hotbarSlot' | 'parameterSnapshots'>>): Preset | undefined {
+export function updatePreset(id: string, updates: Partial<Pick<Preset, 'name' | 'color' | 'carxpPath' | 'groupId' | 'volume' | 'hotbarSlot'>>): Preset | undefined {
   const config = loadConfig()
   const index = config.presets.findIndex(p => p.id === id)
   if (index === -1) return undefined

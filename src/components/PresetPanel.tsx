@@ -331,9 +331,9 @@ export function PresetPanel({
               } : undefined}
             >
               {preset.name}
-              {preset.plugins.length > 0 && (
-                <span className="block text-xs font-normal mt-1 opacity-60">
-                  {preset.plugins.length} plugin{preset.plugins.length !== 1 ? 's' : ''}
+              {preset.carxpPath && (
+                <span className="block text-xs font-normal mt-1 opacity-60 truncate">
+                  {preset.carxpPath.split('/').pop()?.replace('.carxp', '')}
                 </span>
               )}
               {preset.hotbarSlot && (

@@ -1,15 +1,15 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from './ipc/channels'
 import type {
-  Preset, PresetGroup, AudioDevice, AppStatus, DeviceSelection, DeviceState, Toast, ParameterSnapshot, SessionProfile
+  Preset, PresetGroup, AudioDevice, AppStatus, DeviceSelection, DeviceState, Toast, SessionProfile
 } from '../src/types'
 
 export interface PersonaAPI {
   presets: {
     getAll(): Promise<Preset[]>
     activate(id: string): Promise<void>
-    create(name: string, color: string, plugins: string[], carxpPath?: string): Promise<Preset>
-    update(id: string, updates: Partial<Pick<Preset, 'name' | 'color' | 'plugins' | 'carxpPath' | 'groupId' | 'volume' | 'hotbarSlot' | 'parameterSnapshots'>>): Promise<Preset | undefined>
+    create(name: string, color: string, carxpPath?: string): Promise<Preset>
+    update(id: string, updates: Partial<Pick<Preset, 'name' | 'color' | 'carxpPath' | 'groupId' | 'volume' | 'hotbarSlot'>>): Promise<Preset | undefined>
     delete(id: string): Promise<boolean>
     duplicate(id: string): Promise<Preset | undefined>
     reorder(orderedIds: string[]): Promise<void>
@@ -36,9 +36,6 @@ export interface PersonaAPI {
     getSelected(): Promise<DeviceSelection>
     setSelected(input: string, output: string): Promise<void>
     onChange(callback: (state: { inputs: AudioDevice[]; outputs: AudioDevice[] }) => void): () => void
-  }
-  plugins: {
-    getAvailable(): Promise<string[]>
   }
   carla: {
     launch(projectFile?: string): Promise<boolean>
@@ -69,7 +66,6 @@ export interface PersonaAPI {
     setPluginActive(pluginId: number, active: boolean): Promise<void>
     setDryWet(pluginId: number, value: number): Promise<void>
     setVolume(pluginId: number, value: number): Promise<void>
-    restoreSnapshot(snapshots: ParameterSnapshot[]): Promise<void>
   }
   miniPanel: {
     toggle(): Promise<void>
@@ -80,7 +76,7 @@ const api: PersonaAPI = {
   presets: {
     getAll: () => ipcRenderer.invoke(IPC.PRESETS_GET_ALL),
     activate: (id) => ipcRenderer.invoke(IPC.PRESET_ACTIVATE, id),
-    create: (name, color, plugins, carxpPath?) => ipcRenderer.invoke(IPC.PRESET_CREATE, name, color, plugins, carxpPath),
+    create: (name, color, carxpPath?) => ipcRenderer.invoke(IPC.PRESET_CREATE, name, color, carxpPath),
     update: (id, updates) => ipcRenderer.invoke(IPC.PRESET_UPDATE, id, updates),
     delete: (id) => ipcRenderer.invoke(IPC.PRESET_DELETE, id),
     duplicate: (id) => ipcRenderer.invoke(IPC.PRESET_DUPLICATE, id),
@@ -112,9 +108,6 @@ const api: PersonaAPI = {
       ipcRenderer.on(IPC.DEVICES_CHANGED, handler)
       return () => ipcRenderer.removeListener(IPC.DEVICES_CHANGED, handler)
     }
-  },
-  plugins: {
-    getAvailable: () => ipcRenderer.invoke(IPC.PLUGINS_GET_AVAILABLE)
   },
   carla: {
     launch: (projectFile?) => ipcRenderer.invoke(IPC.CARLA_LAUNCH, projectFile),
@@ -153,7 +146,6 @@ const api: PersonaAPI = {
     setPluginActive: (pluginId, active) => ipcRenderer.invoke(IPC.OSC_SET_PLUGIN_ACTIVE, pluginId, active),
     setDryWet: (pluginId, value) => ipcRenderer.invoke(IPC.OSC_SET_DRYWET, pluginId, value),
     setVolume: (pluginId, value) => ipcRenderer.invoke(IPC.OSC_SET_VOLUME, pluginId, value),
-    restoreSnapshot: (snapshots) => ipcRenderer.invoke(IPC.OSC_SNAPSHOT_RESTORE, snapshots)
   },
   miniPanel: {
     toggle: () => ipcRenderer.invoke('mini-panel:toggle')

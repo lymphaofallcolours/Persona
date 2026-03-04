@@ -38,9 +38,9 @@ describe('PresetStore', () => {
 
   it('creates default config from factory on first load', () => {
     const config = loadConfig()
-    expect(config.version).toBe(2)
-    expect(config.presets.length).toBeGreaterThan(0)
-    expect(config.presets[0].name).toBe('Normal')
+    expect(config.version).toBe(3)
+    expect(config.presets.length).toBe(1)
+    expect(config.presets[0].name).toBe('Off')
   })
 
   it('persists config to disk', () => {
@@ -53,16 +53,15 @@ describe('PresetStore', () => {
   })
 
   it('creates a new preset with UUID', () => {
-    const preset = createPreset('Test Voice', '#ff0000', ['Plugin A'])
+    const preset = createPreset('Test Voice', '#ff0000')
     expect(preset.id).toBeTruthy()
     expect(preset.name).toBe('Test Voice')
     expect(preset.color).toBe('#ff0000')
-    expect(preset.plugins).toEqual(['Plugin A'])
     expect(preset.isFactory).toBe(false)
   })
 
   it('persists created presets', () => {
-    createPreset('Persisted', '#00ff00', [])
+    createPreset('Persisted', '#00ff00')
     const presets = getPresets()
     expect(presets.some(p => p.name === 'Persisted')).toBe(true)
   })
@@ -76,20 +75,21 @@ describe('PresetStore', () => {
   })
 
   it('deletes non-factory presets', () => {
-    const preset = createPreset('Deletable', '#000', [])
+    const preset = createPreset('Deletable', '#000')
     const result = deletePreset(preset.id)
     expect(result).toBe(true)
     expect(getPresets().find(p => p.id === preset.id)).toBeUndefined()
   })
 
   it('duplicates a preset with new ID and "(Copy)" suffix', () => {
-    const original = createPreset('Original', '#111', ['P1', 'P2'])
+    const original = createPreset('Original', '#111')
+    updatePreset(original.id, { carxpPath: '/path/to/test.carxp' })
     const copy = duplicatePreset(original.id)
 
     expect(copy).toBeTruthy()
     expect(copy!.id).not.toBe(original.id)
     expect(copy!.name).toBe('Original (Copy)')
-    expect(copy!.plugins).toEqual(['P1', 'P2'])
+    expect(copy!.carxpPath).toBe('/path/to/test.carxp')
     expect(copy!.isFactory).toBe(false)
   })
 
@@ -109,17 +109,16 @@ describe('Groups', () => {
     rmSync(configDir, { recursive: true, force: true })
   })
 
-  it('starts with factory-core group', () => {
+  it('starts with no groups (factory only has Off preset)', () => {
     const groups = getGroups()
-    expect(groups.length).toBe(1)
-    expect(groups[0].name).toBe('Core')
+    expect(groups.length).toBe(0)
   })
 
   it('creates a new group', () => {
     const group = createGroup('NPCs')
     expect(group.name).toBe('NPCs')
     expect(group.id).toBeTruthy()
-    expect(getGroups().length).toBe(2)
+    expect(getGroups().length).toBe(1)
   })
 
   it('updates a group name', () => {
@@ -130,7 +129,7 @@ describe('Groups', () => {
 
   it('deletes a group and ungroups its presets', () => {
     const group = createGroup('Temp')
-    const preset = createPreset('Test', '#000', [])
+    const preset = createPreset('Test', '#000')
     updatePreset(preset.id, { groupId: group.id })
 
     deleteGroup(group.id)
@@ -152,8 +151,8 @@ describe('Hotbar', () => {
   })
 
   it('returns presets sorted by hotbar slot', () => {
-    const p1 = createPreset('A', '#000', [])
-    const p2 = createPreset('B', '#000', [])
+    const p1 = createPreset('A', '#000')
+    const p2 = createPreset('B', '#000')
     updatePreset(p2.id, { hotbarSlot: 1 })
     updatePreset(p1.id, { hotbarSlot: 3 })
 
@@ -171,8 +170,8 @@ describe('Export/Import', () => {
   })
 
   it('exports presets with stripped factory and hotbar fields', () => {
-    const preset = createPreset('Voice A', '#ff0000', ['Calf EQ'])
-    updatePreset(preset.id, { hotbarSlot: 3, volume: 0.8 })
+    const preset = createPreset('Voice A', '#ff0000')
+    updatePreset(preset.id, { hotbarSlot: 3, volume: 0.8, carxpPath: '/test.carxp' })
 
     const data = exportPresets([preset.id])
     expect(data.version).toBe(1)
@@ -180,13 +179,14 @@ describe('Export/Import', () => {
     expect(data.presets[0].isFactory).toBe(false)
     expect(data.presets[0].hotbarSlot).toBeUndefined()
     expect(data.presets[0].volume).toBe(0.8)
+    expect(data.presets[0].carxpPath).toBe('/test.carxp')
     expect(data.presets[0].name).toBe('Voice A')
     expect(data.exportedAt).toBeTruthy()
   })
 
   it('exports groups referenced by selected presets', () => {
     const group = createGroup('NPCs')
-    const preset = createPreset('NPC Voice', '#000', [])
+    const preset = createPreset('NPC Voice', '#000')
     updatePreset(preset.id, { groupId: group.id })
 
     const data = exportPresets([preset.id])
@@ -195,7 +195,8 @@ describe('Export/Import', () => {
   })
 
   it('imports presets with new IDs', () => {
-    const preset = createPreset('Original', '#111', ['P1'])
+    const preset = createPreset('Original', '#111')
+    updatePreset(preset.id, { carxpPath: '/test.carxp' })
     const data = exportPresets([preset.id])
 
     const beforeCount = getPresets().length
@@ -204,31 +205,28 @@ describe('Export/Import', () => {
     expect(result.presetCount).toBe(1)
     expect(getPresets().length).toBe(beforeCount + 1)
 
-    // Imported preset has different ID
     const imported = getPresets().find(p => p.name === 'Original' && p.id !== preset.id)
     expect(imported).toBeTruthy()
-    expect(imported!.plugins).toEqual(['P1'])
+    expect(imported!.carxpPath).toBe('/test.carxp')
   })
 
   it('remaps group IDs on import', () => {
     const group = createGroup('Villains')
-    const preset = createPreset('Evil Voice', '#000', [])
+    const preset = createPreset('Evil Voice', '#000')
     updatePreset(preset.id, { groupId: group.id })
 
     const data = exportPresets([preset.id])
 
-    // Delete original group and preset
     deletePreset(preset.id)
     deleteGroup(group.id)
 
     const result = importPresets(data)
     expect(result.groupCount).toBe(1)
 
-    // Imported group has new ID, preset references it
     const importedPreset = getPresets().find(p => p.name === 'Evil Voice')
     expect(importedPreset).toBeTruthy()
     expect(importedPreset!.groupId).toBeTruthy()
-    expect(importedPreset!.groupId).not.toBe(group.id) // New ID
+    expect(importedPreset!.groupId).not.toBe(group.id)
 
     const importedGroup = getGroups().find(g => g.name === 'Villains' && g.id !== group.id)
     expect(importedGroup).toBeTruthy()
@@ -294,7 +292,7 @@ describe('Migration', () => {
     rmSync(configDir, { recursive: true, force: true })
   })
 
-  it('migrates v1 config to v2', () => {
+  it('migrates v1 config through v2 to v3', () => {
     const configDir = join(tempDir, '.config', 'persona')
     mkdirSync(configDir, { recursive: true })
     writeFileSync(join(configDir, 'presets.json'), JSON.stringify({
@@ -302,13 +300,34 @@ describe('Migration', () => {
       selectedInput: 'auto',
       selectedOutput: 'auto',
       presets: [
-        { id: 'test', name: 'Test', color: '#000', plugins: [], isFactory: false }
+        { id: 'test', name: 'Test', color: '#000', plugins: ['Calf EQ'], isFactory: false }
       ]
     }))
 
     const config = loadConfig()
-    expect(config.version).toBe(2)
+    expect(config.version).toBe(3)
     expect(config.groups).toEqual([])
     expect(config.presets.length).toBe(1)
+    // plugins array should be stripped
+    expect((config.presets[0] as any).plugins).toBeUndefined()
+  })
+
+  it('migrates v2 config to v3 (strips plugins)', () => {
+    const configDir = join(tempDir, '.config', 'persona')
+    mkdirSync(configDir, { recursive: true })
+    writeFileSync(join(configDir, 'presets.json'), JSON.stringify({
+      version: 2,
+      selectedInput: 'auto',
+      selectedOutput: 'auto',
+      groups: [{ id: 'g1', name: 'Core', order: 0 }],
+      presets: [
+        { id: 'test', name: 'Test', color: '#000', plugins: ['P1', 'P2'], isFactory: false }
+      ]
+    }))
+
+    const config = loadConfig()
+    expect(config.version).toBe(3)
+    expect((config.presets[0] as any).plugins).toBeUndefined()
+    expect((config.presets[0] as any).parameterSnapshots).toBeUndefined()
   })
 })

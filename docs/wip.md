@@ -5,48 +5,29 @@
 ## Current Session
 
 **Date:** 2026-03-04
-**Goal:** Preset groups, hotbar, per-preset volume, global hotkeys
+**Goal:** Simplify presets to one .carxp per preset, bug fixes
 
 ### Completed This Session
 
-- Preset Groups, Hotbar, Per-Preset Volume, and Global Hotkeys:
-  - Schema migration v1→v2: added `groups: PresetGroup[]` to config, `groupId`, `volume`, `hotbarSlot` to Preset
-  - Factory presets updated to v2 with `factory-core` group
-  - Group CRUD service: `getGroups()`, `createGroup()`, `updateGroup()`, `deleteGroup()`, `reorderGroups()`
-  - 5 new group IPC channels + handlers + preload API
-  - PresetPanel rewritten: group tabs (All | groups | Ungrouped | +), filtering, move-to-group context menu, pin-to-hotbar
-  - New `Hotbar.tsx` component: 7-slot quick-access bar with preset name/color/slot number
-  - PresetEditor expanded: group dropdown, hotbar slot selector, volume slider (0%-127%)
-  - Per-preset volume applied via OSC `setVolume()` on activation
-  - Global hotkeys: Ctrl+1 through Ctrl+7 via Electron `globalShortcut`
-  - MiniPanel updated: hotbar presets shown at top
-  - New tests: `Hotbar.test.tsx` (5), groups/hotbar/migration tests in `presets.test.ts` (7)
-  - Updated PresetPanel and PresetEditor tests for new props
-- Preset Export/Import:
-  - `PersonaExport` type in `src/types/index.ts`
-  - `exportPresets()` and `importPresets()` in `electron/services/presets.ts`
-  - IPC channels `PRESET_EXPORT` and `PRESET_IMPORT` with file dialog handlers
-  - PresetPanel: Import/Export All toolbar buttons, Export in context menu
-  - 5 new tests (export strips fields, groups included, import new IDs, group remap, invalid data)
-- Session Profiles:
-  - `SessionProfile` type, `sessions: SessionProfile[]` added to `PresetConfig`
-  - Session CRUD in `presets.ts`: `saveSession()`, `getSession()`, `updateSessionName()`, `deleteSession()`
-  - 5 IPC channels + handlers (save captures devices + active preset, load restores them)
-  - Sessions dropdown in App.tsx header with save/load/delete
-  - 6 new tests for session CRUD
-- Previous: Carla OSC integration (v3) — carlaOsc.ts, ParameterPanel, smart switching
-- Additional PresetPanel tests for export/import buttons (3 tests)
-- Total: 111 tests, all passing across 11 test files
+- Bug fixes (v0.9.4–v0.10.0):
+  - Removed `--no-gui` (crashes Flatpak Carla), replaced with xdotool minimize
+  - Snapshot-based plugin detection (baseline diff instead of blacklist)
+  - Fixed OSC timing (wait for actual plugins, not just isRunning)
+  - Three-mode Carla window control: Visible / Minimized / No GUI
+  - Focus-steal prevention: refocusPersona() via xdotool after Carla launch
 
-- UX Polish:
-  - Tray menu: hotbar presets at top with Ctrl+N hints, grouped submenu for preset groups
-  - Click-outside-to-close for session dropdown and context menus
-  - Escape key closes context menus
-  - Empty session name cancels instead of saving
-- Packaging verified: `npm run package` builds successfully
-  - AppImage: 108MB, .deb: 75MB
-  - Build output: `dist/Persona-0.2.0.AppImage`, `dist/persona_0.2.0_amd64.deb`
-- Total: 111 tests, all passing across 11 test files
+- **Major refactor: one .carxp per preset** (v0.11.0):
+  - Removed `plugins: string[]` and `parameterSnapshots` from Preset type
+  - Each preset now just points to a .carxp file; Carla handles all internal plugin routing
+  - New `carxp.ts`: parses .carxp XML to extract first/last plugin names for PipeWire routing
+  - Simplified `pipewire.ts`: endpoint-based routing (mic→first_plugin, last_plugin→output)
+  - Simplified `handlers.ts`: activatePreset uses carxp parsing instead of plugin arrays
+  - Removed ParameterPanel component (Carla manages params via .carxp)
+  - Simplified PresetEditor: removed plugin chain UI, kept carxp file browser
+  - PresetPanel: shows .carxp filename instead of plugin count
+  - Factory presets stripped to Off only; v2→v3 migration strips plugins from existing configs
+  - Removed PLUGINS_GET_AVAILABLE, OSC snapshot channels
+  - Total: 117 tests passing across 11 test files
 
 ### In Progress
 
@@ -54,9 +35,9 @@
 
 ### Next Steps
 
-1. Replace placeholder PNG icons with user-provided custom PNGs
-2. Manual testing: full preset workflow with groups, hotbar, volume, hotkeys, sessions
-3. Crossfade toggle between presets (needs research — may conflict with no-audio-processing rule)
+1. Manual testing: create .carxp in Carla GUI, assign to preset, verify routing works
+2. Replace placeholder PNG icons with user-provided custom PNGs
+3. Crossfade toggle between presets (needs research)
 4. Discord overlay integration (research needed)
 5. Stream Deck / macro pad support (future)
 

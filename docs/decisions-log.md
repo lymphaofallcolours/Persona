@@ -16,6 +16,14 @@ Each entry captures a non-obvious technical decision. Record a decision when:
 
 <!-- Entries below — newest first -->
 
+## 2026-03-04 — One .carxp per preset, remove plugin lists
+
+**Status:** Accepted (supersedes plugin-list approach)
+**Context:** The dual-source preset model (plugins[] array + optional .carxp file) caused mismatches — plugin names had to exactly match PipeWire client names, and users had to maintain both the plugin list in Persona and the Carla project file. User found the plugin selection UI unconvincing and preferred to manage plugins entirely in Carla.
+**Decision:** Each preset now points to a single .carxp file. Carla handles all internal plugin routing. Persona parses the .carxp XML to find first/last plugin names and only creates two PipeWire link pairs: mic→first_plugin and last_plugin→output. Removed plugins[], parameterSnapshots, ParameterPanel, and all OSC snapshot logic. Off preset has no .carxp (disconnects all links). Presets without .carxp get direct mic→output passthrough.
+**Alternatives rejected:** (1) Keep plugins[] alongside .carxp — too much complexity, prone to drift. (2) Auto-detect plugins from PipeWire — unreliable, race conditions with plugin loading.
+**Consequences:** Users must create .carxp files in Carla GUI (cannot be auto-generated). Parameter tweaking happens exclusively in Carla. Schema migrated to v3 (strips plugins from existing presets). Factory presets reduced to Off only.
+
 ## 2026-03-04 — Session profiles for saving/restoring app state
 
 **Status:** Accepted

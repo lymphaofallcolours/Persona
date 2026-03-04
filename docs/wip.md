@@ -5,40 +5,48 @@
 ## Current Session
 
 **Date:** 2026-03-04
-**Goal:** Full TypeScript migration — Electron + React + Tailwind
+**Goal:** Test infrastructure + remaining docs
 
 ### Completed This Session
 
-- Phase 1: Electron scaffold + core preset switching via pw-link
-- Phase 2: Device discovery with polling, device dropdowns, hot-plug detection
-- Phase 3: Preset CRUD (create, edit, duplicate, delete, drag-and-drop reorder)
-- Phase 4: Carla lifecycle (auto-start, crash detection, health polling, toast alerts)
-- Phase 5: System tray (preset menu, close-to-tray) + detachable mini panel
-- Phase 6: Polish — electron-builder config, updated architecture docs
-- Fixed post-commit hook infinite recursion bug
-- Created GitHub repo (lymphaofallcolours/Persona), pushed all commits
-- Updated CLAUDE.md to require commits after each logical unit of work
+- Set up vitest test infrastructure (vitest, @testing-library/react, Playwright, jsdom)
+- Unit tests: pipewire (5), presets (8), devices (10), carla (7) — 30 unit tests
+- Component tests: PresetPanel (8), DeviceSelector (5) — 13 component tests
+- Total: 43 tests, all passing
+- Removed legacy `persona.py` and `.claude/rules/persona.py.md`
+- Created `.claude/rules/electron.md` with TS migration rules
+- Updated `docs/adding-voices.md` for new GUI preset editor workflow
+- Updated `docs/testing.md` with TDD workflow and test pyramid
+- Configured vitest with React plugin for JSX transform in component tests
 
 ### In Progress
 
-- Documentation updates (dependencies.md, decisions-log.md need TS migration entries)
-- `persona.py` still in repo — to be removed once migration is validated
+- Nothing currently in progress
 
 ### Next Steps
 
-1. Test the app on actual hardware (run `npm run dev`)
-2. Remove `persona.py` (legacy Python version)
-3. Update `docs/adding-voices.md` for new preset editor workflow
+1. Add mic monitoring toggle (task #14)
+2. Write PresetEditor component test
+3. Set up Playwright E2E test scaffold
 4. Update `docs/dependencies.md` with all npm dependencies
-5. Append migration ADR to `docs/decisions-log.md`
-6. v2 features: `.carxp` file association per preset, Carla project loading
-7. v3 features: Carla OSC integration for plugin parameter control
+5. v2: `.carxp` file association per preset
+6. v3: Carla OSC integration for plugin parameter control
+7. Test the app on actual hardware (`npm run dev`)
 
 ---
 
 ## Previous Sessions
 
-### 2026-03-04 — Documentation system setup
+### 2026-03-04 — Full TypeScript migration (session 2)
+- Phase 1-6 of migration plan completed
+- Electron + React + Tailwind scaffold with all components
+- PipeWire service, preset store, device discovery, Carla lifecycle
+- System tray, mini panel, toast notifications
+- electron-builder packaging config
+- Fixed post-commit hook infinite recursion
+- Created GitHub repo (lymphaofallcolours/Persona), pushed all commits
+
+### 2026-03-04 — Documentation system setup (session 1)
 - Renamed `doc/` → `docs/`, created 13 docs files
 - Created CLAUDE.md, VERSION, git hooks, .claude/rules/persona.py.md
 - Created GitHub remote, pushed initial commit

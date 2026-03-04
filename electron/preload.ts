@@ -8,7 +8,7 @@ export interface PersonaAPI {
   presets: {
     getAll(): Promise<Preset[]>
     activate(id: string): Promise<void>
-    create(name: string, color: string, plugins: string[]): Promise<Preset>
+    create(name: string, color: string, plugins: string[], carxpPath?: string): Promise<Preset>
     update(id: string, updates: Partial<Pick<Preset, 'name' | 'color' | 'plugins' | 'carxpPath'>>): Promise<Preset | undefined>
     delete(id: string): Promise<boolean>
     duplicate(id: string): Promise<Preset | undefined>
@@ -36,6 +36,9 @@ export interface PersonaAPI {
   toast: {
     onShow(callback: (toast: Toast) => void): () => void
   }
+  dialog: {
+    openFile(filters: { name: string; extensions: string[] }[]): Promise<string | null>
+  }
   micMonitor: {
     toggle(): Promise<boolean>
     isOn(): Promise<boolean>
@@ -49,7 +52,7 @@ const api: PersonaAPI = {
   presets: {
     getAll: () => ipcRenderer.invoke(IPC.PRESETS_GET_ALL),
     activate: (id) => ipcRenderer.invoke(IPC.PRESET_ACTIVATE, id),
-    create: (name, color, plugins) => ipcRenderer.invoke(IPC.PRESET_CREATE, name, color, plugins),
+    create: (name, color, plugins, carxpPath?) => ipcRenderer.invoke(IPC.PRESET_CREATE, name, color, plugins, carxpPath),
     update: (id, updates) => ipcRenderer.invoke(IPC.PRESET_UPDATE, id, updates),
     delete: (id) => ipcRenderer.invoke(IPC.PRESET_DELETE, id),
     duplicate: (id) => ipcRenderer.invoke(IPC.PRESET_DUPLICATE, id),
@@ -88,6 +91,9 @@ const api: PersonaAPI = {
       ipcRenderer.on(IPC.TOAST, handler)
       return () => ipcRenderer.removeListener(IPC.TOAST, handler)
     }
+  },
+  dialog: {
+    openFile: (filters) => ipcRenderer.invoke(IPC.DIALOG_OPEN_FILE, filters)
   },
   micMonitor: {
     toggle: () => ipcRenderer.invoke(IPC.MIC_MONITOR_TOGGLE),

@@ -27,6 +27,9 @@ export const IPC = {
   MIC_MONITOR_TOGGLE: 'mic-monitor:toggle',
   MIC_MONITOR_GET: 'mic-monitor:get',
 
+  // Dialog
+  DIALOG_OPEN_FILE: 'dialog:open-file',
+
   // Status
   STATUS_GET: 'status:get',
   STATUS_CHANGED: 'status:changed',

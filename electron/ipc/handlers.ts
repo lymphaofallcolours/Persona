@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow } from 'electron'
+import { ipcMain, BrowserWindow, dialog } from 'electron'
 import { IPC } from './channels'
 import * as presetStore from '../services/presets'
 import * as pipewire from '../services/pipewire'
@@ -15,6 +15,7 @@ let knownInputs: AudioDevice[] = []
 let knownOutputs: AudioDevice[] = []
 let carlaRunning = false
 let carlaPlugins: string[] = []
+let currentCarxpPath: string | undefined = undefined
 let pollInterval: ReturnType<typeof setInterval> | null = null
 
 function broadcast(channel: string, data: unknown): void {
@@ -105,24 +106,38 @@ export async function activatePreset(id: string): Promise<void> {
   const isOff = preset.name === 'Off' && preset.plugins.length === 0
   const hasPlugins = preset.plugins.length > 0
 
-  if (hasPlugins && !carlaRunning) {
-    const launched = carla.launch(preset.carxpPath)
-    if (launched) {
-      sendToast('info', 'Starting Carla...')
-      for (let i = 0; i < 20; i++) {
-        await new Promise(r => setTimeout(r, 500))
-        const plugins = await devices.getCarlaPlugins()
-        if (plugins.length > 0) {
-          carlaPlugins = plugins
-          carlaRunning = true
-          break
+  if (hasPlugins) {
+    const needsRestart = carlaRunning && preset.carxpPath && preset.carxpPath !== currentCarxpPath
+    const needsStart = !carlaRunning
+
+    if (needsRestart) {
+      sendToast('info', 'Restarting Carla with new project file...')
+      carla.stop()
+      carlaRunning = false
+      currentCarxpPath = undefined
+      await new Promise(r => setTimeout(r, 1000))
+    }
+
+    if (needsStart || needsRestart) {
+      const launched = carla.launch(preset.carxpPath)
+      if (launched) {
+        sendToast('info', 'Starting Carla...')
+        currentCarxpPath = preset.carxpPath
+        for (let i = 0; i < 20; i++) {
+          await new Promise(r => setTimeout(r, 500))
+          const plugins = await devices.getCarlaPlugins()
+          if (plugins.length > 0) {
+            carlaPlugins = plugins
+            carlaRunning = true
+            break
+          }
         }
+        if (carlaPlugins.length === 0) {
+          sendToast('warning', 'Carla started but no plugins detected yet. The preset may not work correctly.')
+        }
+      } else {
+        sendToast('error', 'Failed to launch Carla. Install it via: flatpak install studio.kx.carla')
       }
-      if (carlaPlugins.length === 0) {
-        sendToast('warning', 'Carla started but no plugins detected yet. The preset may not work correctly.')
-      }
-    } else {
-      sendToast('error', 'Failed to launch Carla. Install it via: flatpak install studio.kx.carla')
     }
   }
 
@@ -168,8 +183,12 @@ export function registerIpcHandlers(): void {
     await activatePreset(id)
   })
 
-  ipcMain.handle(IPC.PRESET_CREATE, (_event, name: string, color: string, plugins: string[]) => {
-    return presetStore.createPreset(name, color, plugins)
+  ipcMain.handle(IPC.PRESET_CREATE, (_event, name: string, color: string, plugins: string[], carxpPath?: string) => {
+    const preset = presetStore.createPreset(name, color, plugins)
+    if (carxpPath) {
+      presetStore.updatePreset(preset.id, { carxpPath })
+    }
+    return carxpPath ? { ...preset, carxpPath } : preset
   })
 
   ipcMain.handle(IPC.PRESET_UPDATE, (_event, id: string, updates: Record<string, unknown>) => {
@@ -260,6 +279,21 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.MIC_MONITOR_GET, () => {
     return micMonitoring
+  })
+
+  // --- Dialog ---
+
+  ipcMain.handle(IPC.DIALOG_OPEN_FILE, async (_event, filters: { name: string; extensions: string[] }[]) => {
+    const win = BrowserWindow.getFocusedWindow()
+    if (!win) return null
+
+    const result = await dialog.showOpenDialog(win, {
+      properties: ['openFile'],
+      filters
+    })
+
+    if (result.canceled || result.filePaths.length === 0) return null
+    return result.filePaths[0]
   })
 
   // --- Status ---

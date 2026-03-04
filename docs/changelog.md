@@ -7,6 +7,9 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.4.0] — 2026-03-04
+- feat(presets): add .carxp file association per preset (1bd69b2)
+
 ## [0.3.0] — 2026-03-04
 - feat(mic-monitor): add mic monitoring toggle (b89b724)
 

@@ -46,9 +46,9 @@ function MainApp() {
   const handleEditPreset = (preset: Preset) => setEditingPreset(preset)
   const handleCancelEdit = () => setEditingPreset(undefined)
 
-  const handleSavePreset = async (data: { name: string; color: string; plugins: string[] }) => {
+  const handleSavePreset = async (data: { name: string; color: string; plugins: string[]; carxpPath?: string }) => {
     if (editingPreset === null) {
-      await window.persona.presets.create(data.name, data.color, data.plugins)
+      await window.persona.presets.create(data.name, data.color, data.plugins, data.carxpPath)
     } else if (editingPreset) {
       await window.persona.presets.update(editingPreset.id, data)
     }

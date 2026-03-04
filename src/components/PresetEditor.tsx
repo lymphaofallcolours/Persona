@@ -8,7 +8,7 @@ const PRESET_COLORS = [
 
 interface PresetEditorProps {
   preset?: Preset | null
-  onSave: (data: { name: string; color: string; plugins: string[] }) => void
+  onSave: (data: { name: string; color: string; plugins: string[]; carxpPath?: string }) => void
   onCancel: () => void
 }
 
@@ -16,6 +16,7 @@ export function PresetEditor({ preset, onSave, onCancel }: PresetEditorProps) {
   const [name, setName] = useState(preset?.name ?? '')
   const [color, setColor] = useState(preset?.color ?? PRESET_COLORS[0])
   const [plugins, setPlugins] = useState<string[]>(preset?.plugins ?? [])
+  const [carxpPath, setCarxpPath] = useState<string | undefined>(preset?.carxpPath)
   const [available, setAvailable] = useState<string[]>([])
   const dragIndex = useRef<number | null>(null)
   const dragOverIndex = useRef<number | null>(null)
@@ -56,10 +57,17 @@ export function PresetEditor({ preset, onSave, onCancel }: PresetEditorProps) {
     dragOverIndex.current = null
   }
 
+  const handleBrowseCarxp = async () => {
+    const path = await window.persona.dialog.openFile([
+      { name: 'Carla Projects', extensions: ['carxp'] }
+    ])
+    if (path) setCarxpPath(path)
+  }
+
   const handleSave = () => {
     const trimmed = name.trim()
     if (!trimmed) return
-    onSave({ name: trimmed, color, plugins })
+    onSave({ name: trimmed, color, plugins, carxpPath })
   }
 
   // Plugins available to add (not already in chain)
@@ -175,6 +183,42 @@ export function PresetEditor({ preset, onSave, onCancel }: PresetEditorProps) {
                 </select>
               </div>
             )}
+          </div>
+
+          {/* Carla project file */}
+          <div>
+            <label className="block text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
+              Carla Project File
+            </label>
+            {carxpPath ? (
+              <div className="flex items-center gap-2 bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-300">
+                <span className="flex-1 truncate" title={carxpPath}>
+                  {carxpPath.split('/').pop()}
+                </span>
+                <button
+                  onClick={handleBrowseCarxp}
+                  className="shrink-0 text-zinc-500 hover:text-zinc-300 text-[10px]"
+                >
+                  Change
+                </button>
+                <button
+                  onClick={() => setCarxpPath(undefined)}
+                  className="shrink-0 text-zinc-600 hover:text-red-400 text-sm leading-none"
+                >
+                  x
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleBrowseCarxp}
+                className="w-full text-left bg-zinc-800 border border-zinc-700 border-dashed rounded px-2 py-1.5 text-xs text-zinc-500 hover:text-zinc-300 hover:border-zinc-500 transition-colors"
+              >
+                + Browse for .carxp file...
+              </button>
+            )}
+            <p className="text-[10px] text-zinc-600 mt-1">
+              Optional. Carla will load this project when the preset is activated.
+            </p>
           </div>
         </div>
 

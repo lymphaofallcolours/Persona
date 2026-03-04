@@ -7,6 +7,9 @@ import type { Preset } from '../types'
 const mockPersona = {
   plugins: {
     getAvailable: vi.fn().mockResolvedValue(['Calf Compressor', 'Calf EQ', 'Calf Reverb'])
+  },
+  dialog: {
+    openFile: vi.fn().mockResolvedValue(null)
   }
 }
 
@@ -106,5 +109,48 @@ describe('PresetEditor', () => {
     }
     render(<PresetEditor {...defaultProps} preset={preset} />)
     expect(screen.getByText('Save')).toBeTruthy()
+  })
+
+  it('shows carxp browse button when no file set', () => {
+    render(<PresetEditor {...defaultProps} />)
+    expect(screen.getByText(/Browse for .carxp file/)).toBeTruthy()
+  })
+
+  it('shows carxp filename when file is set', () => {
+    const preset: Preset = {
+      id: '1', name: 'Test', color: '#cc3333', plugins: [],
+      carxpPath: '/home/user/projects/techpriest.carxp', isFactory: false
+    }
+    render(<PresetEditor {...defaultProps} preset={preset} />)
+    expect(screen.getByText('techpriest.carxp')).toBeTruthy()
+  })
+
+  it('clears carxp path when x clicked', () => {
+    const preset: Preset = {
+      id: '1', name: 'Test', color: '#cc3333', plugins: [],
+      carxpPath: '/home/user/projects/techpriest.carxp', isFactory: false
+    }
+    render(<PresetEditor {...defaultProps} preset={preset} />)
+    // Find the clear button (x) in the carxp section
+    const clearButtons = screen.getAllByText('x')
+    // Click the last x (carxp clear, not plugin remove)
+    fireEvent.click(clearButtons[clearButtons.length - 1])
+    // After clearing, browse button should appear
+    expect(screen.getByText(/Browse for .carxp file/)).toBeTruthy()
+  })
+
+  it('includes carxpPath in save data', () => {
+    const preset: Preset = {
+      id: '1', name: 'Test', color: '#cc3333', plugins: [],
+      carxpPath: '/path/to/project.carxp', isFactory: false
+    }
+    render(<PresetEditor {...defaultProps} preset={preset} />)
+    fireEvent.click(screen.getByText('Save'))
+    expect(defaultProps.onSave).toHaveBeenCalledWith({
+      name: 'Test',
+      color: '#cc3333',
+      plugins: [],
+      carxpPath: '/path/to/project.carxp'
+    })
   })
 })

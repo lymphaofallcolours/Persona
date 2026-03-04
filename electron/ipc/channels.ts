@@ -18,6 +18,11 @@ export const IPC = {
   // Plugins (available in PipeWire)
   PLUGINS_GET_AVAILABLE: 'plugins:get-available',
 
+  // Carla
+  CARLA_LAUNCH: 'carla:launch',
+  CARLA_STOP: 'carla:stop',
+  CARLA_IS_RUNNING: 'carla:is-running',
+
   // Status
   STATUS_GET: 'status:get',
   STATUS_CHANGED: 'status:changed',

@@ -4,6 +4,7 @@ import { PresetPanel } from './components/PresetPanel'
 import { PresetEditor } from './components/PresetEditor'
 import { DeviceSelector } from './components/DeviceSelector'
 import { StatusBar } from './components/StatusBar'
+import { CarlaControls } from './components/CarlaControls'
 import { ToastContainer } from './components/Toast'
 
 export default function App() {
@@ -59,9 +60,12 @@ export default function App() {
   return (
     <div className="flex flex-col h-screen bg-zinc-900 text-white">
       <header className="px-4 py-3 border-b border-zinc-800 space-y-3">
-        <h1 className="text-sm font-bold tracking-widest text-zinc-400 uppercase">
-          Persona
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-sm font-bold tracking-widest text-zinc-400 uppercase">
+            Persona
+          </h1>
+          <CarlaControls status={status} />
+        </div>
         <DeviceSelector />
       </header>
 

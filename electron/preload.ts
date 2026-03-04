@@ -24,6 +24,11 @@ export interface PersonaAPI {
   plugins: {
     getAvailable(): Promise<string[]>
   }
+  carla: {
+    launch(projectFile?: string): Promise<boolean>
+    stop(): Promise<void>
+    isRunning(): Promise<boolean>
+  }
   status: {
     get(): Promise<AppStatus>
     onChange(callback: (status: AppStatus) => void): () => void
@@ -56,6 +61,11 @@ const api: PersonaAPI = {
   },
   plugins: {
     getAvailable: () => ipcRenderer.invoke(IPC.PLUGINS_GET_AVAILABLE)
+  },
+  carla: {
+    launch: (projectFile?) => ipcRenderer.invoke(IPC.CARLA_LAUNCH, projectFile),
+    stop: () => ipcRenderer.invoke(IPC.CARLA_STOP),
+    isRunning: () => ipcRenderer.invoke(IPC.CARLA_IS_RUNNING)
   },
   status: {
     get: () => ipcRenderer.invoke(IPC.STATUS_GET),

@@ -3,6 +3,7 @@ import { IPC } from './channels'
 import * as presetStore from '../services/presets'
 import * as pipewire from '../services/pipewire'
 import * as devices from '../services/devices'
+import * as carla from '../services/carla'
 import type { AudioLink } from '../services/pipewire'
 import type { AppStatus, AudioDevice, Toast, ToastType } from '../../src/types'
 
@@ -10,6 +11,8 @@ let activePresetId: string | null = null
 let activeLinks: AudioLink[] = []
 let knownInputs: AudioDevice[] = []
 let knownOutputs: AudioDevice[] = []
+let carlaRunning = false
+let carlaPlugins: string[] = []
 let pollInterval: ReturnType<typeof setInterval> | null = null
 
 function broadcast(channel: string, data: unknown): void {
@@ -18,14 +21,17 @@ function broadcast(channel: string, data: unknown): void {
   }
 }
 
-function broadcastStatus(): void {
-  const status: AppStatus = {
+function getStatus(): AppStatus {
+  return {
     activePresetId,
-    carlaRunning: false, // Phase 4
-    carlaPlugins: [],    // Phase 4
+    carlaRunning,
+    carlaPlugins,
     linksActive: activeLinks.length
   }
-  broadcast(IPC.STATUS_CHANGED, status)
+}
+
+function broadcastStatus(): void {
+  broadcast(IPC.STATUS_CHANGED, getStatus())
 }
 
 export function sendToast(type: ToastType, message: string): void {
@@ -61,7 +67,6 @@ async function pollDevices(): Promise<void> {
     const outputsChanged = JSON.stringify(outputs) !== JSON.stringify(knownOutputs)
 
     if (inputsChanged || outputsChanged) {
-      // Check for disappeared devices
       const { input: selectedInput, output: selectedOutput } = presetStore.getSelectedDevices()
 
       if (selectedInput !== 'auto' && !inputs.some(d => d.name === selectedInput)) {
@@ -76,11 +81,30 @@ async function pollDevices(): Promise<void> {
       broadcast(IPC.DEVICES_CHANGED, { inputs, outputs })
     }
   } catch {
-    // PipeWire not available — silent
+    // PipeWire not available
   }
 }
 
 export function registerIpcHandlers(): void {
+  // --- Carla lifecycle ---
+
+  carla.onEvents(
+    (running, plugins) => {
+      const changed = running !== carlaRunning || JSON.stringify(plugins) !== JSON.stringify(carlaPlugins)
+      carlaRunning = running
+      carlaPlugins = plugins
+      if (changed) broadcastStatus()
+    },
+    () => {
+      sendToast('error', 'Carla has crashed. Effects presets will not work until Carla is restarted.')
+      carlaRunning = false
+      carlaPlugins = []
+      broadcastStatus()
+    }
+  )
+
+  carla.startHealthPolling(devices.getCarlaPlugins)
+
   // --- Presets ---
 
   ipcMain.handle(IPC.PRESETS_GET_ALL, () => {
@@ -91,13 +115,40 @@ export function registerIpcHandlers(): void {
     const preset = presetStore.getPreset(id)
     if (!preset) throw new Error(`Preset not found: ${id}`)
 
+    // Disconnect current links
     if (activeLinks.length > 0) {
       await pipewire.disconnectBatch(activeLinks)
       activeLinks = []
     }
 
-    const { inputDevice, outputDevice } = await resolveDevices()
     const isOff = preset.name === 'Off' && preset.plugins.length === 0
+    const hasPlugins = preset.plugins.length > 0
+
+    // Auto-start Carla if needed
+    if (hasPlugins && !carlaRunning) {
+      const launched = carla.launch(preset.carxpPath)
+      if (launched) {
+        sendToast('info', 'Starting Carla...')
+        // Wait for plugins to appear (up to 10s)
+        for (let i = 0; i < 20; i++) {
+          await new Promise(r => setTimeout(r, 500))
+          const plugins = await devices.getCarlaPlugins()
+          if (plugins.length > 0) {
+            carlaPlugins = plugins
+            carlaRunning = true
+            break
+          }
+        }
+
+        if (carlaPlugins.length === 0) {
+          sendToast('warning', 'Carla started but no plugins detected yet. The preset may not work correctly.')
+        }
+      } else {
+        sendToast('error', 'Failed to launch Carla. Install it via: flatpak install studio.kx.carla')
+      }
+    }
+
+    const { inputDevice, outputDevice } = await resolveDevices()
     const links = pipewire.buildPresetLinks(inputDevice, outputDevice, preset.plugins, isOff)
 
     if (links.length > 0) {
@@ -110,8 +161,7 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle(IPC.PRESET_CREATE, (_event, name: string, color: string, plugins: string[]) => {
-    const preset = presetStore.createPreset(name, color, plugins)
-    return preset
+    return presetStore.createPreset(name, color, plugins)
   })
 
   ipcMain.handle(IPC.PRESET_UPDATE, (_event, id: string, updates: Record<string, unknown>) => {
@@ -160,15 +210,26 @@ export function registerIpcHandlers(): void {
     return devices.getCarlaPlugins()
   })
 
+  // --- Carla ---
+
+  ipcMain.handle(IPC.CARLA_LAUNCH, (_event, projectFile?: string) => {
+    const ok = carla.launch(projectFile)
+    if (!ok) sendToast('error', 'Failed to launch Carla')
+    return ok
+  })
+
+  ipcMain.handle(IPC.CARLA_STOP, () => {
+    carla.stop()
+  })
+
+  ipcMain.handle(IPC.CARLA_IS_RUNNING, () => {
+    return carla.isRunning()
+  })
+
   // --- Status ---
 
   ipcMain.handle(IPC.STATUS_GET, (): AppStatus => {
-    return {
-      activePresetId,
-      carlaRunning: false,
-      carlaPlugins: [],
-      linksActive: activeLinks.length
-    }
+    return getStatus()
   })
 
   // Start device polling
@@ -181,4 +242,5 @@ export function stopPolling(): void {
     clearInterval(pollInterval)
     pollInterval = null
   }
+  carla.stopHealthPolling()
 }

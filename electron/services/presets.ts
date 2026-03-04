@@ -39,6 +39,36 @@ function migrateConfig(config: any): PresetConfig {
       delete preset.plugins
       delete preset.parameterSnapshots
     }
+    // Remove old factory presets (Normal, Clean, Techpriest) — only keep Off
+    config.presets = config.presets.filter(
+      (p: any) => !p.isFactory || p.name === 'Off'
+    )
+    // Ensure Off factory preset exists
+    if (!config.presets.some((p: any) => p.isFactory && p.name === 'Off')) {
+      config.presets.unshift({
+        id: 'factory-off',
+        name: 'Off',
+        color: '#666666',
+        isFactory: true
+      })
+    }
+  }
+  // Cleanup: remove old factory presets that aren't Off (from pre-v3 configs
+  // that were already migrated to v3 but kept stale factory presets)
+  if (config.version === 3) {
+    const hadStaleFactory = config.presets.some(
+      (p: any) => p.isFactory && p.name !== 'Off'
+    )
+    if (hadStaleFactory) {
+      config.presets = config.presets.filter(
+        (p: any) => !p.isFactory || p.name === 'Off'
+      )
+      // Also strip any leftover plugins/parameterSnapshots fields
+      for (const preset of config.presets) {
+        delete (preset as any).plugins
+        delete (preset as any).parameterSnapshots
+      }
+    }
   }
   if (!config.groups) {
     config.groups = []
@@ -61,7 +91,8 @@ export function loadConfig(): PresetConfig {
   const raw = readFileSync(CONFIG_FILE, 'utf-8')
   const config = JSON.parse(raw)
   const migrated = migrateConfig(config)
-  if (config.version !== migrated.version) {
+  // Save if migration changed anything (version bump or stale cleanup)
+  if (JSON.stringify(config) !== JSON.stringify(migrated)) {
     saveConfig(migrated)
   }
   return migrated

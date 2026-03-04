@@ -180,6 +180,14 @@ export async function activatePreset(id: string): Promise<void> {
   activeLinks = links
   activePresetId = id
 
+  // Re-establish monitor links if monitoring is active
+  // (preset switch may have disconnected the same physical PipeWire connections)
+  if (micMonitoring) {
+    const monLinks = pipewire.buildMonitorLinks(inputDevice, outputDevice)
+    await pipewire.connectBatch(monLinks)
+    monitorLinks = monLinks
+  }
+
   // Apply per-preset volume via OSC
   if (preset.volume !== undefined && preset.volume !== 1.0 && carlaOsc.isConnected() && carlaPlugins.length > 0) {
     try {

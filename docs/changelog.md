@@ -7,6 +7,9 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.10.1] — 2026-03-04
+- fix(presets): clean up stale factory presets, fix monitor on preset switch (f3d4f81)
+
 ## [0.10.0] — 2026-03-04
 - feat(carla): three-mode window control (Visible/Minimized/No GUI) with focus-steal prevention (6d2f76b)
 

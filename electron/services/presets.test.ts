@@ -307,9 +307,13 @@ describe('Migration', () => {
     const config = loadConfig()
     expect(config.version).toBe(3)
     expect(config.groups).toEqual([])
-    expect(config.presets.length).toBe(1)
-    // plugins array should be stripped
-    expect((config.presets[0] as any).plugins).toBeUndefined()
+    // Original preset + Off factory preset added by migration
+    expect(config.presets.length).toBe(2)
+    expect(config.presets.find(p => p.name === 'Off')?.isFactory).toBe(true)
+    // plugins array should be stripped from user preset
+    const userPreset = config.presets.find(p => p.name === 'Test')
+    expect(userPreset).toBeTruthy()
+    expect((userPreset as any).plugins).toBeUndefined()
   })
 
   it('migrates v2 config to v3 (strips plugins)', () => {
@@ -329,5 +333,52 @@ describe('Migration', () => {
     expect(config.version).toBe(3)
     expect((config.presets[0] as any).plugins).toBeUndefined()
     expect((config.presets[0] as any).parameterSnapshots).toBeUndefined()
+  })
+
+  it('v2→v3 removes old factory presets, keeps Off', () => {
+    const configDir = join(tempDir, '.config', 'persona')
+    mkdirSync(configDir, { recursive: true })
+    writeFileSync(join(configDir, 'presets.json'), JSON.stringify({
+      version: 2,
+      selectedInput: 'auto',
+      selectedOutput: 'auto',
+      groups: [],
+      presets: [
+        { id: 'factory-normal', name: 'Normal', color: '#4a9eff', plugins: [], isFactory: true },
+        { id: 'factory-techpriest', name: 'Techpriest', color: '#cc3333', plugins: ['Calf Compressor'], isFactory: true },
+        { id: 'factory-off', name: 'Off', color: '#666666', isFactory: true },
+        { id: 'user-1', name: 'My Voice', color: '#00ff00', plugins: ['Calf EQ'], isFactory: false }
+      ]
+    }))
+
+    const config = loadConfig()
+    expect(config.presets.length).toBe(2)
+    expect(config.presets.find(p => p.name === 'Off')?.isFactory).toBe(true)
+    expect(config.presets.find(p => p.name === 'My Voice')).toBeTruthy()
+    expect(config.presets.find(p => p.name === 'Normal')).toBeUndefined()
+    expect(config.presets.find(p => p.name === 'Techpriest')).toBeUndefined()
+  })
+
+  it('cleans up stale factory presets from already-migrated v3 config', () => {
+    const configDir = join(tempDir, '.config', 'persona')
+    mkdirSync(configDir, { recursive: true })
+    writeFileSync(join(configDir, 'presets.json'), JSON.stringify({
+      version: 3,
+      selectedInput: 'auto',
+      selectedOutput: 'auto',
+      groups: [],
+      sessions: [],
+      presets: [
+        { id: 'factory-normal', name: 'Normal', color: '#4a9eff', isFactory: true },
+        { id: 'factory-off', name: 'Off', color: '#666666', isFactory: true },
+        { id: 'user-1', name: 'Custom', color: '#00ff00', isFactory: false }
+      ]
+    }))
+
+    const config = loadConfig()
+    expect(config.presets.length).toBe(2)
+    expect(config.presets.find(p => p.name === 'Off')).toBeTruthy()
+    expect(config.presets.find(p => p.name === 'Custom')).toBeTruthy()
+    expect(config.presets.find(p => p.name === 'Normal')).toBeUndefined()
   })
 })

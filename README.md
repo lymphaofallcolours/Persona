@@ -108,4 +108,4 @@ See [`docs/architecture.md`](docs/architecture.md) for system diagrams and [`doc
 
 ## License
 
-MIT
+GPL-3.0 — see [LICENSE](LICENSE)

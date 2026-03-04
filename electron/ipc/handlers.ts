@@ -122,8 +122,8 @@ export async function activatePreset(id: string): Promise<void> {
       if (!validation.hasPlugins) {
         sendToast('warning', 'No plugins found in .carxp file')
       }
-      if (validation.hasPlugins && !validation.hasInternalPatchbay) {
-        sendToast('warning', 'No internal patchbay in .carxp — plugins may not be wired together. Save the project in Carla to fix this.')
+      if (validation.hasPlugins && !validation.hasPatchbay) {
+        sendToast('warning', 'No patchbay in .carxp — plugins may not be wired together. Save the project in Carla to fix this.')
       }
     } catch {
       sendToast('error', 'Failed to read .carxp file')

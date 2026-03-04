@@ -77,6 +77,22 @@ const CARXP_WITH_PATCHBAY = `<?xml version='1.0' encoding='UTF-8'?>
   </ExternalPatchbay>
 </CARLA-PROJECT>`
 
+const CARXP_EXTERNAL_ONLY = `<?xml version='1.0' encoding='UTF-8'?>
+<CARLA-PROJECT VERSION='2.5'>
+  <Plugin>
+    <Info>
+      <Type>LV2</Type>
+      <Name>Calf Compressor</Name>
+    </Info>
+  </Plugin>
+  <ExternalPatchbay>
+    <Connection>
+      <Source>Calf Compressor:Out L</Source>
+      <Target>system:playback_1</Target>
+    </Connection>
+  </ExternalPatchbay>
+</CARLA-PROJECT>`
+
 describe('parseCarxpPlugins', () => {
   it('extracts plugin names in order', () => {
     const file = join(tempDir, 'test.carxp')
@@ -130,7 +146,7 @@ describe('validateCarxp', () => {
     writeFileSync(file, SAMPLE_CARXP)
     const result = validateCarxp(file)
     expect(result.hasPlugins).toBe(true)
-    expect(result.hasInternalPatchbay).toBe(false)
+    expect(result.hasPatchbay).toBe(false)
     expect(result.pluginNames).toEqual(['Calf Compressor', 'Calf EQ', 'Calf Reverb'])
   })
 
@@ -139,8 +155,17 @@ describe('validateCarxp', () => {
     writeFileSync(file, CARXP_WITH_PATCHBAY)
     const result = validateCarxp(file)
     expect(result.hasPlugins).toBe(true)
-    expect(result.hasInternalPatchbay).toBe(true)
+    expect(result.hasPatchbay).toBe(true)
     expect(result.pluginNames).toEqual(['Calf Compressor', 'Calf Reverb'])
+  })
+
+  it('detects ExternalPatchbay only (Multi-Client mode)', () => {
+    const file = join(tempDir, 'external-only.carxp')
+    writeFileSync(file, CARXP_EXTERNAL_ONLY)
+    const result = validateCarxp(file)
+    expect(result.hasPlugins).toBe(true)
+    expect(result.hasPatchbay).toBe(true)
+    expect(result.pluginNames).toEqual(['Calf Compressor'])
   })
 
   it('detects empty project', () => {
@@ -148,7 +173,7 @@ describe('validateCarxp', () => {
     writeFileSync(file, EMPTY_CARXP)
     const result = validateCarxp(file)
     expect(result.hasPlugins).toBe(false)
-    expect(result.hasInternalPatchbay).toBe(false)
+    expect(result.hasPatchbay).toBe(false)
     expect(result.pluginNames).toEqual([])
   })
 

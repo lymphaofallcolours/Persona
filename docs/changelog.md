@@ -7,6 +7,9 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.10.3] — 2026-03-04
+- fix(carxp): detect ExternalPatchbay for Multi-Client mode validation (f53ab3c)
+
 ## [0.10.2] — 2026-03-04
 - fix(carla): dynamic PipeWire port discovery, async stop, JACK env vars (5bab534)
 

@@ -40,23 +40,28 @@ export function getCarxpEndpoints(filePath: string): { first: string; last: stri
 
 export interface CarxpValidation {
   hasPlugins: boolean
-  hasInternalPatchbay: boolean
+  hasPatchbay: boolean
   pluginNames: string[]
 }
 
 /**
  * Validate a .carxp file for routing readiness.
- * Checks for plugins and internal patchbay wiring.
- * Missing <Patchbay> means plugins won't be wired internally by Carla.
+ * Checks for plugins and patchbay wiring (internal or external).
+ *
+ * Carla uses two patchbay sections depending on ProcessMode:
+ * - <Patchbay>: internal routing (Patchbay mode, ProcessMode=3)
+ * - <ExternalPatchbay>: external JACK/PipeWire routing (Multi-Client mode, ProcessMode=1)
+ *
+ * Either section means plugins are wired together.
  */
 export function validateCarxp(filePath: string): CarxpValidation {
   const xml = readFileSync(filePath, 'utf-8')
   const pluginNames = parseCarxpPlugins(filePath)
-  const hasInternalPatchbay = /<Patchbay>/.test(xml)
+  const hasPatchbay = /<Patchbay>/.test(xml) || /<ExternalPatchbay>/.test(xml)
 
   return {
     hasPlugins: pluginNames.length > 0,
-    hasInternalPatchbay,
+    hasPatchbay,
     pluginNames
   }
 }

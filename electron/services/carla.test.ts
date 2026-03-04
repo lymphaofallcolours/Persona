@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Mock child_process before importing
 vi.mock('child_process', () => ({
@@ -12,7 +12,7 @@ vi.mock('fs', () => ({
 }))
 
 import { execSync, spawn } from 'child_process'
-import { isRunning, launch, stop } from './carla'
+import { isRunning, launch, stop, setMinimized, getMinimized } from './carla'
 
 const mockExecSync = vi.mocked(execSync)
 const mockSpawn = vi.mocked(spawn)
@@ -56,7 +56,7 @@ describe('launch', () => {
     } as any
   }
 
-  it('tries flatpak first (always with GUI)', () => {
+  it('tries flatpak first (always with GUI, no --no-gui)', () => {
     const proc = makeFakeProcess()
     mockSpawn.mockReturnValue(proc)
 
@@ -106,5 +106,18 @@ describe('stop', () => {
     launch()
     stop()
     expect(proc.kill).toHaveBeenCalledWith('SIGTERM')
+  })
+})
+
+describe('minimized mode', () => {
+  it('defaults to minimized', () => {
+    expect(getMinimized()).toBe(true)
+  })
+
+  it('can be toggled', () => {
+    setMinimized(false)
+    expect(getMinimized()).toBe(false)
+    setMinimized(true)
+    expect(getMinimized()).toBe(true)
   })
 })

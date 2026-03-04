@@ -394,8 +394,13 @@ export function registerIpcHandlers(): void {
     return carla.isRunning()
   })
 
-  // CARLA_SET_MINIMIZED / CARLA_GET_MINIMIZED removed — Flatpak Carla
-  // doesn't support --no-gui. Carla always launches with its GUI window.
+  ipcMain.handle(IPC.CARLA_SET_MINIMIZED, (_event, minimized: boolean) => {
+    carla.setMinimized(minimized)
+  })
+
+  ipcMain.handle(IPC.CARLA_GET_MINIMIZED, () => {
+    return carla.getMinimized()
+  })
 
   // --- Mic Monitor ---
 

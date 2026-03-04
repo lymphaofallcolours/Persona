@@ -7,6 +7,9 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.9.5] — 2026-03-04
+- fix(carla): restore minimize toggle using xdotool instead of --no-gui (17fd849)
+
 ## [0.9.4] — 2026-03-04
 - fix(carla): remove --no-gui mode, snapshot-based plugin detection, fix OSC timing (01b84fe)
 

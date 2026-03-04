@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import type { AppStatus } from '../types'
 
 interface CarlaControlsProps {
@@ -5,12 +6,24 @@ interface CarlaControlsProps {
 }
 
 export function CarlaControls({ status }: CarlaControlsProps) {
+  const [minimized, setMinimized] = useState(true)
+
+  useEffect(() => {
+    window.persona.carla.getMinimized().then(setMinimized)
+  }, [])
+
   const handleLaunch = async () => {
     await window.persona.carla.launch()
   }
 
   const handleStop = async () => {
     await window.persona.carla.stop()
+  }
+
+  const handleToggleMinimized = async () => {
+    const next = !minimized
+    setMinimized(next)
+    await window.persona.carla.setMinimized(next)
   }
 
   return (
@@ -30,6 +43,18 @@ export function CarlaControls({ status }: CarlaControlsProps) {
           </span>
         )}
       </span>
+
+      <button
+        onClick={handleToggleMinimized}
+        title={minimized ? 'Carla window is minimized. Click to show it.' : 'Carla window is visible. Click to minimize it.'}
+        className={`px-1.5 py-0.5 rounded text-[10px] border ${
+          minimized
+            ? 'bg-blue-900/30 border-blue-700 text-blue-400'
+            : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'
+        }`}
+      >
+        {minimized ? 'Minimized' : 'Visible'}
+      </button>
 
       {status.carlaRunning ? (
         <button

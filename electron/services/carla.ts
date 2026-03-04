@@ -6,7 +6,8 @@ type StatusCallback = (running: boolean, plugins: string[]) => void
 type CrashCallback = () => void
 
 // Carla launch commands (tried in order)
-// Note: --no-gui crashes Flatpak Carla, so we always launch with GUI.
+// Note: --no-gui crashes Flatpak Carla, so we always launch with GUI
+// and use xdotool to minimize the window when minimized mode is on.
 const CARLA_COMMANDS = [
   { cmd: 'flatpak', args: ['run', 'studio.kx.carla'] },
   { cmd: 'carla', args: [] }
@@ -16,6 +17,57 @@ let carlaProcess: ChildProcess | null = null
 let healthInterval: ReturnType<typeof setInterval> | null = null
 let onStatusChange: StatusCallback | null = null
 let onCrash: CrashCallback | null = null
+let minimizedMode = true // Default: minimize Carla window after launch
+
+export function setMinimized(minimized: boolean): void {
+  minimizedMode = minimized
+  // If Carla is running, apply immediately
+  if (isRunning()) {
+    if (minimized) {
+      minimizeCarlaWindow()
+    } else {
+      restoreCarlaWindow()
+    }
+  }
+}
+
+export function getMinimized(): boolean {
+  return minimizedMode
+}
+
+/**
+ * Minimize Carla's window using xdotool.
+ * Retries a few times since the window may take a moment to appear after launch.
+ */
+export function minimizeCarlaWindow(retries = 5): void {
+  const attempt = () => {
+    try {
+      execSync('xdotool search --name "Carla" windowminimize', {
+        timeout: 2000,
+        stdio: 'pipe'
+      })
+    } catch {
+      if (retries > 0) {
+        setTimeout(() => minimizeCarlaWindow(retries - 1), 1000)
+      }
+    }
+  }
+  attempt()
+}
+
+/**
+ * Restore (unminimize) Carla's window.
+ */
+function restoreCarlaWindow(): void {
+  try {
+    execSync('xdotool search --name "Carla" windowactivate', {
+      timeout: 2000,
+      stdio: 'pipe'
+    })
+  } catch {
+    // Window not found — that's fine
+  }
+}
 
 /**
  * Check if Carla is already running (any instance, not just ours).
@@ -31,7 +83,8 @@ export function isRunning(): boolean {
 
 /**
  * Launch Carla, optionally with a .carxp project file.
- * Always launches with GUI — Flatpak Carla doesn't support --no-gui.
+ * Always launches with GUI (--no-gui crashes Flatpak Carla).
+ * If minimizedMode is on, the window is minimized after it appears.
  */
 export function launch(projectFile?: string): boolean {
   if (carlaProcess && !carlaProcess.killed) {
@@ -64,6 +117,12 @@ export function launch(projectFile?: string): boolean {
       })
 
       carlaProcess.unref()
+
+      // Minimize the window after it appears (if minimized mode is on)
+      if (minimizedMode) {
+        setTimeout(() => minimizeCarlaWindow(8), 2000)
+      }
+
       return true
     } catch {
       continue

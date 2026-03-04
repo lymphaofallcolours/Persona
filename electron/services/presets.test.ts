@@ -23,7 +23,7 @@ vi.mock('os', async () => {
 })
 
 // Now import after mocks are set up
-const { loadConfig, saveConfig, getPresets, createPreset, deletePreset, duplicatePreset, reorderPresets } = await import('./presets')
+const { loadConfig, saveConfig, getPresets, createPreset, updatePreset, deletePreset, duplicatePreset, reorderPresets, getGroups, createGroup, updateGroup, deleteGroup, getHotbarPresets } = await import('./presets')
 
 describe('PresetStore', () => {
   beforeEach(() => {
@@ -38,7 +38,7 @@ describe('PresetStore', () => {
 
   it('creates default config from factory on first load', () => {
     const config = loadConfig()
-    expect(config.version).toBe(1)
+    expect(config.version).toBe(2)
     expect(config.presets.length).toBeGreaterThan(0)
     expect(config.presets[0].name).toBe('Normal')
   })
@@ -100,5 +100,91 @@ describe('PresetStore', () => {
 
     const reordered = getPresets()
     expect(reordered.map(p => p.id)).toEqual(reversed)
+  })
+})
+
+describe('Groups', () => {
+  beforeEach(() => {
+    const configDir = join(tempDir, '.config', 'persona')
+    rmSync(configDir, { recursive: true, force: true })
+  })
+
+  it('starts with factory-core group', () => {
+    const groups = getGroups()
+    expect(groups.length).toBe(1)
+    expect(groups[0].name).toBe('Core')
+  })
+
+  it('creates a new group', () => {
+    const group = createGroup('NPCs')
+    expect(group.name).toBe('NPCs')
+    expect(group.id).toBeTruthy()
+    expect(getGroups().length).toBe(2)
+  })
+
+  it('updates a group name', () => {
+    const group = createGroup('Old Name')
+    const updated = updateGroup(group.id, 'New Name')
+    expect(updated?.name).toBe('New Name')
+  })
+
+  it('deletes a group and ungroups its presets', () => {
+    const group = createGroup('Temp')
+    const preset = createPreset('Test', '#000', [])
+    updatePreset(preset.id, { groupId: group.id })
+
+    deleteGroup(group.id)
+    expect(getGroups().find(g => g.id === group.id)).toBeUndefined()
+
+    const updatedPreset = getPresets().find(p => p.id === preset.id)
+    expect(updatedPreset?.groupId).toBeUndefined()
+  })
+})
+
+describe('Hotbar', () => {
+  beforeEach(() => {
+    const configDir = join(tempDir, '.config', 'persona')
+    rmSync(configDir, { recursive: true, force: true })
+  })
+
+  it('returns empty when no presets have hotbar slots', () => {
+    expect(getHotbarPresets()).toEqual([])
+  })
+
+  it('returns presets sorted by hotbar slot', () => {
+    const p1 = createPreset('A', '#000', [])
+    const p2 = createPreset('B', '#000', [])
+    updatePreset(p2.id, { hotbarSlot: 1 })
+    updatePreset(p1.id, { hotbarSlot: 3 })
+
+    const hotbar = getHotbarPresets()
+    expect(hotbar.length).toBe(2)
+    expect(hotbar[0].hotbarSlot).toBe(1)
+    expect(hotbar[1].hotbarSlot).toBe(3)
+  })
+})
+
+describe('Migration', () => {
+  beforeEach(() => {
+    const configDir = join(tempDir, '.config', 'persona')
+    rmSync(configDir, { recursive: true, force: true })
+  })
+
+  it('migrates v1 config to v2', () => {
+    const configDir = join(tempDir, '.config', 'persona')
+    mkdirSync(configDir, { recursive: true })
+    writeFileSync(join(configDir, 'presets.json'), JSON.stringify({
+      version: 1,
+      selectedInput: 'auto',
+      selectedOutput: 'auto',
+      presets: [
+        { id: 'test', name: 'Test', color: '#000', plugins: [], isFactory: false }
+      ]
+    }))
+
+    const config = loadConfig()
+    expect(config.version).toBe(2)
+    expect(config.groups).toEqual([])
+    expect(config.presets.length).toBe(1)
   })
 })

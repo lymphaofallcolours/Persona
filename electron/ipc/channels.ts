@@ -8,6 +8,13 @@ export const IPC = {
   PRESET_DUPLICATE: 'preset:duplicate',
   PRESET_REORDER: 'preset:reorder',
 
+  // Groups
+  GROUP_GET_ALL: 'group:get-all',
+  GROUP_CREATE: 'group:create',
+  GROUP_UPDATE: 'group:update',
+  GROUP_DELETE: 'group:delete',
+  GROUP_REORDER: 'group:reorder',
+
   // Devices
   DEVICES_GET_INPUTS: 'devices:get-inputs',
   DEVICES_GET_OUTPUTS: 'devices:get-outputs',

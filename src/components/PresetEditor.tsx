@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import type { Preset } from '../types'
+import type { Preset, PresetGroup } from '../types'
 
 const PRESET_COLORS = [
   '#4a9eff', '#cc3333', '#cc8833', '#33cc33', '#9933cc',
@@ -8,15 +8,22 @@ const PRESET_COLORS = [
 
 interface PresetEditorProps {
   preset?: Preset | null
-  onSave: (data: { name: string; color: string; plugins: string[]; carxpPath?: string }) => void
+  groups: PresetGroup[]
+  onSave: (data: {
+    name: string; color: string; plugins: string[];
+    carxpPath?: string; groupId?: string; volume?: number; hotbarSlot?: number
+  }) => void
   onCancel: () => void
 }
 
-export function PresetEditor({ preset, onSave, onCancel }: PresetEditorProps) {
+export function PresetEditor({ preset, groups, onSave, onCancel }: PresetEditorProps) {
   const [name, setName] = useState(preset?.name ?? '')
   const [color, setColor] = useState(preset?.color ?? PRESET_COLORS[0])
   const [plugins, setPlugins] = useState<string[]>(preset?.plugins ?? [])
   const [carxpPath, setCarxpPath] = useState<string | undefined>(preset?.carxpPath)
+  const [groupId, setGroupId] = useState<string | undefined>(preset?.groupId)
+  const [volume, setVolume] = useState<number>(preset?.volume ?? 1.0)
+  const [hotbarSlot, setHotbarSlot] = useState<number | undefined>(preset?.hotbarSlot)
   const [available, setAvailable] = useState<string[]>([])
   const dragIndex = useRef<number | null>(null)
   const dragOverIndex = useRef<number | null>(null)
@@ -67,11 +74,16 @@ export function PresetEditor({ preset, onSave, onCancel }: PresetEditorProps) {
   const handleSave = () => {
     const trimmed = name.trim()
     if (!trimmed) return
-    onSave({ name: trimmed, color, plugins, carxpPath })
+    onSave({
+      name: trimmed, color, plugins, carxpPath, groupId,
+      volume: volume !== 1.0 ? volume : undefined,
+      hotbarSlot
+    })
   }
 
   // Plugins available to add (not already in chain)
   const addable = available.filter((p) => !plugins.includes(p))
+  const sortedGroups = [...groups].sort((a, b) => a.order - b.order)
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-40" onClick={onCancel}>
@@ -119,6 +131,61 @@ export function PresetEditor({ preset, onSave, onCancel }: PresetEditorProps) {
                   style={{ backgroundColor: c }}
                 />
               ))}
+            </div>
+          </div>
+
+          {/* Group + Hotbar row */}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
+                Group
+              </label>
+              <select
+                value={groupId ?? ''}
+                onChange={(e) => setGroupId(e.target.value || undefined)}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-zinc-500"
+              >
+                <option value="">Ungrouped</option>
+                {sortedGroups.map(g => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="w-24">
+              <label className="block text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
+                Hotbar
+              </label>
+              <select
+                value={hotbarSlot ?? ''}
+                onChange={(e) => setHotbarSlot(e.target.value ? Number(e.target.value) : undefined)}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-zinc-500"
+              >
+                <option value="">None</option>
+                {[1, 2, 3, 4, 5, 6, 7].map(s => (
+                  <option key={s} value={s}>Slot {s}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Volume */}
+          <div>
+            <label className="block text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
+              Volume ({Math.round(volume * 100)}%)
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="1.27"
+              step="0.01"
+              value={volume}
+              onChange={(e) => setVolume(parseFloat(e.target.value))}
+              className="w-full h-1.5 accent-blue-500"
+            />
+            <div className="flex justify-between text-[10px] text-zinc-600 mt-0.5">
+              <span>0%</span>
+              <span>100%</span>
+              <span>127%</span>
             </div>
           </div>
 

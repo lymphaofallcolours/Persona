@@ -24,6 +24,7 @@ afterEach(() => {
 
 describe('PresetEditor', () => {
   const defaultProps = {
+    groups: [],
     onSave: vi.fn(),
     onCancel: vi.fn()
   }

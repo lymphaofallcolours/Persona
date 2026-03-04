@@ -1,13 +1,21 @@
 {
-  "version": 1,
+  "version": 2,
   "selectedInput": "auto",
   "selectedOutput": "auto",
+  "groups": [
+    {
+      "id": "factory-core",
+      "name": "Core",
+      "order": 0
+    }
+  ],
   "presets": [
     {
       "id": "factory-normal",
       "name": "Normal",
       "color": "#4a9eff",
       "plugins": [],
+      "groupId": "factory-core",
       "isFactory": true
     },
     {
@@ -21,6 +29,7 @@
         "Calf Flanger",
         "Calf Reverb"
       ],
+      "groupId": "factory-core",
       "isFactory": true
     },
     {
@@ -32,6 +41,7 @@
         "Calf Equalizer 8 Band",
         "Calf Reverb"
       ],
+      "groupId": "factory-core",
       "isFactory": true
     },
     {
@@ -39,6 +49,7 @@
       "name": "Off",
       "color": "#666666",
       "plugins": [],
+      "groupId": "factory-core",
       "isFactory": true
     }
   ]

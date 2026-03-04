@@ -1,7 +1,8 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, globalShortcut } from 'electron'
 import { join } from 'path'
 import { registerIpcHandlers, stopPolling, activatePreset } from './ipc/handlers'
 import { createTray, updateTrayMenu, destroyTray } from './tray'
+import * as presetStore from './services/presets'
 
 let mainWindow: BrowserWindow | null = null
 let miniPanel: BrowserWindow | null = null
@@ -113,6 +114,17 @@ app.whenReady().then(() => {
     updateTrayMenu(activePresetId)
   })
 
+  // Register global hotkeys (Ctrl+1 through Ctrl+7 for hotbar slots)
+  for (let i = 1; i <= 7; i++) {
+    globalShortcut.register(`CommandOrControl+${i}`, () => {
+      const hotbar = presetStore.getHotbarPresets()
+      const preset = hotbar.find(p => p.hotbarSlot === i)
+      if (preset) {
+        activatePreset(preset.id)
+      }
+    })
+  }
+
   // Listen for mini panel toggle from renderer
   ipcMain.handle('mini-panel:toggle', () => {
     if (miniPanel && !miniPanel.isDestroyed()) {
@@ -126,6 +138,7 @@ app.whenReady().then(() => {
 
 app.on('before-quit', () => {
   isQuitting = true
+  globalShortcut.unregisterAll()
   stopPolling()
   destroyTray()
 })

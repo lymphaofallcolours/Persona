@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { Preset, AppStatus } from './types'
+import type { Preset, PresetGroup, AppStatus } from './types'
 import { PresetPanel } from './components/PresetPanel'
 import { PresetEditor } from './components/PresetEditor'
+import { Hotbar } from './components/Hotbar'
 import { DeviceSelector } from './components/DeviceSelector'
 import { StatusBar } from './components/StatusBar'
 import { CarlaControls } from './components/CarlaControls'
@@ -19,6 +20,8 @@ export default function App() {
 
 function MainApp() {
   const [presets, setPresets] = useState<Preset[]>([])
+  const [groups, setGroups] = useState<PresetGroup[]>([])
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
   const [status, setStatus] = useState<AppStatus>({
     activePresetId: null,
     carlaRunning: false,
@@ -31,6 +34,7 @@ function MainApp() {
 
   const refreshPresets = useCallback(() => {
     window.persona.presets.getAll().then(setPresets)
+    window.persona.groups.getAll().then(setGroups)
   }, [])
 
   useEffect(() => {
@@ -48,9 +52,19 @@ function MainApp() {
   const handleEditPreset = (preset: Preset) => setEditingPreset(preset)
   const handleCancelEdit = () => setEditingPreset(undefined)
 
-  const handleSavePreset = async (data: { name: string; color: string; plugins: string[]; carxpPath?: string }) => {
+  const handleSavePreset = async (data: {
+    name: string; color: string; plugins: string[];
+    carxpPath?: string; groupId?: string; volume?: number; hotbarSlot?: number
+  }) => {
     if (editingPreset === null) {
-      await window.persona.presets.create(data.name, data.color, data.plugins, data.carxpPath)
+      const created = await window.persona.presets.create(data.name, data.color, data.plugins, data.carxpPath)
+      if (data.groupId || data.volume !== undefined || data.hotbarSlot !== undefined) {
+        await window.persona.presets.update(created.id, {
+          groupId: data.groupId,
+          volume: data.volume,
+          hotbarSlot: data.hotbarSlot
+        })
+      }
     } else if (editingPreset) {
       await window.persona.presets.update(editingPreset.id, data)
     }
@@ -59,7 +73,7 @@ function MainApp() {
   }
 
   const handleSaveSnapshot = async (presetId: string, snapshots: import('./types').ParameterSnapshot[]) => {
-    await window.persona.presets.update(presetId, { parameterSnapshots: snapshots } as any)
+    await window.persona.presets.update(presetId, { parameterSnapshots: snapshots })
     refreshPresets()
   }
 
@@ -89,9 +103,18 @@ function MainApp() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-4">
-        <PresetPanel
+        <Hotbar
           presets={presets}
           activePresetId={status.activePresetId}
+          onActivate={handleActivate}
+          onRefresh={refreshPresets}
+        />
+        <PresetPanel
+          presets={presets}
+          groups={groups}
+          activePresetId={status.activePresetId}
+          selectedGroupId={selectedGroupId}
+          onSelectGroup={setSelectedGroupId}
           onActivate={handleActivate}
           onEdit={handleEditPreset}
           onNew={handleNewPreset}
@@ -110,6 +133,7 @@ function MainApp() {
       {editingPreset !== undefined && (
         <PresetEditor
           preset={editingPreset}
+          groups={groups}
           onSave={handleSavePreset}
           onCancel={handleCancelEdit}
         />

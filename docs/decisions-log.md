@@ -16,6 +16,14 @@ Each entry captures a non-obvious technical decision. Record a decision when:
 
 <!-- Entries below — newest first -->
 
+## 2026-03-04 — Preset groups, hotbar, per-preset volume, and global hotkeys
+
+**Status:** Accepted
+**Context:** User manages 10+ voice presets during tabletop RPG sessions. The flat 2-column grid doesn't scale — no way to organize, no quick-access bar, no keyboard shortcuts, and some presets are louder than others.
+**Decision:** Four tightly related features implemented together: (1) Preset Groups — flat `groupId` field on presets, group tabs in PresetPanel with filtering, context menu for move-to-group. (2) Hotbar — 7-slot quick-access bar, `hotbarSlot` field on presets, pin/unpin via context menu. (3) Per-Preset Volume — `volume` field (0.0-1.27), applied via OSC `setVolume()` on activation. (4) Global Hotkeys — Ctrl+1-7 via Electron `globalShortcut`, activates corresponding hotbar slot. Schema migrated v1→v2 with backward compatibility.
+**Alternatives rejected:** (1) Nested group hierarchy — overkill for ~20 presets, flat groupId simpler. (2) Separate hotbar config — keeping it on the preset object is more intuitive. (3) System-wide volume control — per-plugin OSC volume gives finer control.
+**Consequences:** Config schema is now v2. v1 configs auto-migrate (add empty groups array). Global Ctrl+1-7 shortcuts may conflict with other apps — acceptable since Persona is always-on during sessions. Volume requires OSC connection to Carla.
+
 ## 2026-03-04 — Carla OSC integration for real-time parameter control
 
 **Status:** Accepted

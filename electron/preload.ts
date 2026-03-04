@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from './ipc/channels'
 import type {
-  Preset, AudioDevice, AppStatus, DeviceSelection, DeviceState, Toast, ParameterSnapshot
+  Preset, PresetGroup, AudioDevice, AppStatus, DeviceSelection, DeviceState, Toast, ParameterSnapshot
 } from '../src/types'
 
 export interface PersonaAPI {
@@ -9,9 +9,16 @@ export interface PersonaAPI {
     getAll(): Promise<Preset[]>
     activate(id: string): Promise<void>
     create(name: string, color: string, plugins: string[], carxpPath?: string): Promise<Preset>
-    update(id: string, updates: Partial<Pick<Preset, 'name' | 'color' | 'plugins' | 'carxpPath'>>): Promise<Preset | undefined>
+    update(id: string, updates: Partial<Pick<Preset, 'name' | 'color' | 'plugins' | 'carxpPath' | 'groupId' | 'volume' | 'hotbarSlot' | 'parameterSnapshots'>>): Promise<Preset | undefined>
     delete(id: string): Promise<boolean>
     duplicate(id: string): Promise<Preset | undefined>
+    reorder(orderedIds: string[]): Promise<void>
+  }
+  groups: {
+    getAll(): Promise<PresetGroup[]>
+    create(name: string): Promise<PresetGroup>
+    update(id: string, name: string): Promise<PresetGroup | undefined>
+    delete(id: string): Promise<boolean>
     reorder(orderedIds: string[]): Promise<void>
   }
   devices: {
@@ -67,6 +74,13 @@ const api: PersonaAPI = {
     delete: (id) => ipcRenderer.invoke(IPC.PRESET_DELETE, id),
     duplicate: (id) => ipcRenderer.invoke(IPC.PRESET_DUPLICATE, id),
     reorder: (orderedIds) => ipcRenderer.invoke(IPC.PRESET_REORDER, orderedIds)
+  },
+  groups: {
+    getAll: () => ipcRenderer.invoke(IPC.GROUP_GET_ALL),
+    create: (name) => ipcRenderer.invoke(IPC.GROUP_CREATE, name),
+    update: (id, name) => ipcRenderer.invoke(IPC.GROUP_UPDATE, id, name),
+    delete: (id) => ipcRenderer.invoke(IPC.GROUP_DELETE, id),
+    reorder: (orderedIds) => ipcRenderer.invoke(IPC.GROUP_REORDER, orderedIds)
   },
   devices: {
     getInputs: () => ipcRenderer.invoke(IPC.DEVICES_GET_INPUTS),

@@ -15,6 +15,13 @@ const mockPersona = {
   presets: {
     duplicate: vi.fn().mockResolvedValue(undefined),
     delete: vi.fn().mockResolvedValue(true),
+    reorder: vi.fn().mockResolvedValue(undefined),
+    update: vi.fn().mockResolvedValue(undefined)
+  },
+  groups: {
+    create: vi.fn().mockResolvedValue({ id: 'g1', name: 'Test', order: 0 }),
+    delete: vi.fn().mockResolvedValue(true),
+    update: vi.fn().mockResolvedValue(undefined),
     reorder: vi.fn().mockResolvedValue(undefined)
   }
 }
@@ -31,7 +38,10 @@ afterEach(() => {
 describe('PresetPanel', () => {
   const defaultProps = {
     presets: mockPresets,
+    groups: [],
     activePresetId: '1',
+    selectedGroupId: null as string | null,
+    onSelectGroup: vi.fn(),
     onActivate: vi.fn(),
     onEdit: vi.fn(),
     onNew: vi.fn(),

@@ -174,6 +174,17 @@ export async function activatePreset(id: string): Promise<void> {
     }
   }
 
+  // Apply per-preset volume via OSC
+  if (preset.volume !== undefined && preset.volume !== 1.0 && carlaOsc.isConnected()) {
+    try {
+      for (let i = 0; i < preset.plugins.length; i++) {
+        await carlaOsc.setVolume(i, preset.volume)
+      }
+    } catch {
+      // Volume not applied — Carla defaults
+    }
+  }
+
   broadcastStatus()
 }
 
@@ -233,6 +244,28 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.PRESET_REORDER, (_event, orderedIds: string[]) => {
     presetStore.reorderPresets(orderedIds)
+  })
+
+  // --- Groups ---
+
+  ipcMain.handle(IPC.GROUP_GET_ALL, () => {
+    return presetStore.getGroups()
+  })
+
+  ipcMain.handle(IPC.GROUP_CREATE, (_event, name: string) => {
+    return presetStore.createGroup(name)
+  })
+
+  ipcMain.handle(IPC.GROUP_UPDATE, (_event, id: string, name: string) => {
+    return presetStore.updateGroup(id, name)
+  })
+
+  ipcMain.handle(IPC.GROUP_DELETE, (_event, id: string) => {
+    return presetStore.deleteGroup(id)
+  })
+
+  ipcMain.handle(IPC.GROUP_REORDER, (_event, orderedIds: string[]) => {
+    presetStore.reorderGroups(orderedIds)
   })
 
   // --- Devices ---

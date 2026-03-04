@@ -26,6 +26,12 @@ export interface ParameterInfo {
   defaultValue: number
 }
 
+export interface PresetGroup {
+  id: string
+  name: string
+  order: number
+}
+
 export interface Preset {
   id: string
   name: string
@@ -33,6 +39,9 @@ export interface Preset {
   plugins: string[]
   carxpPath?: string
   parameterSnapshots?: ParameterSnapshot[]
+  groupId?: string
+  volume?: number
+  hotbarSlot?: number
   isFactory: boolean
 }
 
@@ -57,6 +66,7 @@ export interface PresetConfig {
   selectedInput: string
   selectedOutput: string
   presets: Preset[]
+  groups: PresetGroup[]
 }
 
 export interface DeviceSelection {

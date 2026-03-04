@@ -5,27 +5,25 @@
 ## Current Session
 
 **Date:** 2026-03-04
-**Goal:** Carla OSC integration (v3)
+**Goal:** Preset groups, hotbar, per-preset volume, global hotkeys
 
 ### Completed This Session
 
-- Carla OSC integration (v3 feature):
-  - `node-osc` dependency (v11.2.2)
-  - `electron/services/carlaOsc.ts` — OSC client service (connect, disconnect, setParameterValue, setPluginActive, setDryWet, setVolume)
-  - `electron/services/carlaOsc.test.ts` — 10 unit tests
-  - Updated `carla.ts` to set `CARLA_OSC_UDP_PORT` env var on Carla spawn
-  - OSC IPC channels in `channels.ts` (9 new channels)
-  - OSC handlers in `handlers.ts` (connect, disconnect, set parameter, set active, set drywet, set volume, snapshot restore)
-  - OSC API exposed in `preload.ts`
-  - `ParameterSnapshot`, `PluginInfo`, `ParameterInfo` types in `src/types/index.ts`
-  - `oscConnected` added to `AppStatus`
-  - Smart preset switching: skip Carla restart when same `.carxp`, apply parameter snapshots via OSC
-  - `ParameterPanel.tsx` — parameter slider UI with accordion plugins, real-time OSC control, save-to-preset
-  - `ParameterPanel.test.tsx` — 7 component tests
-  - Wired ParameterPanel into `App.tsx`
-  - Updated `docs/dependencies.md` with node-osc entry
-  - Updated `docs/decisions-log.md` with OSC ADR
-- Total: 85 tests, all passing across 10 test files
+- Preset Groups, Hotbar, Per-Preset Volume, and Global Hotkeys:
+  - Schema migration v1→v2: added `groups: PresetGroup[]` to config, `groupId`, `volume`, `hotbarSlot` to Preset
+  - Factory presets updated to v2 with `factory-core` group
+  - Group CRUD service: `getGroups()`, `createGroup()`, `updateGroup()`, `deleteGroup()`, `reorderGroups()`
+  - 5 new group IPC channels + handlers + preload API
+  - PresetPanel rewritten: group tabs (All | groups | Ungrouped | +), filtering, move-to-group context menu, pin-to-hotbar
+  - New `Hotbar.tsx` component: 7-slot quick-access bar with preset name/color/slot number
+  - PresetEditor expanded: group dropdown, hotbar slot selector, volume slider (0%-127%)
+  - Per-preset volume applied via OSC `setVolume()` on activation
+  - Global hotkeys: Ctrl+1 through Ctrl+7 via Electron `globalShortcut`
+  - MiniPanel updated: hotbar presets shown at top
+  - New tests: `Hotbar.test.tsx` (5), groups/hotbar/migration tests in `presets.test.ts` (7)
+  - Updated PresetPanel and PresetEditor tests for new props
+- Previous: Carla OSC integration (v3) — carlaOsc.ts, ParameterPanel, smart switching
+- Total: 97 tests, all passing across 11 test files
 
 ### In Progress
 
@@ -35,12 +33,18 @@
 
 1. Replace placeholder PNG icons with user-provided custom PNGs
 2. Test packaging: `npm run package` to build .AppImage / .deb
-3. Manual testing: Carla OSC connection, parameter control, snapshot save/restore
-4. Hotkey support (future)
+3. Manual testing: full preset workflow with groups, hotbar, volume, hotkeys
+4. Session profiles (save/restore full app state)
+5. Preset export/import
+6. Crossfade toggle between presets
+7. Discord overlay integration
 
 ---
 
 ## Previous Sessions
+
+### 2026-03-04 — Carla OSC integration (session 6)
+- node-osc, carlaOsc.ts, ParameterPanel, smart preset switching, 85 tests
 
 ### 2026-03-04 — .carxp integration, polish, branding (session 5)
 - `.carxp` file association, StatusBar test, README, GPL-3.0, SVG icon, packaging (.AppImage + .deb)

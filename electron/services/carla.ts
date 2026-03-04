@@ -1,5 +1,6 @@
 import { spawn, execSync, ChildProcess } from 'child_process'
 import { existsSync } from 'fs'
+import { CARLA_OSC_PORT } from './carlaOsc'
 
 type StatusCallback = (running: boolean, plugins: string[]) => void
 type CrashCallback = () => void
@@ -44,7 +45,8 @@ export function launch(projectFile?: string): boolean {
 
       carlaProcess = spawn(cmd, fullArgs, {
         detached: true,
-        stdio: 'ignore'
+        stdio: 'ignore',
+        env: { ...process.env, CARLA_OSC_UDP_PORT: String(CARLA_OSC_PORT) }
       })
 
       carlaProcess.on('exit', (code) => {

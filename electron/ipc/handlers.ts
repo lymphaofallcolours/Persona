@@ -4,8 +4,9 @@ import * as presetStore from '../services/presets'
 import * as pipewire from '../services/pipewire'
 import * as devices from '../services/devices'
 import * as carla from '../services/carla'
+import * as carlaOsc from '../services/carlaOsc'
 import type { AudioLink } from '../services/pipewire'
-import type { AppStatus, AudioDevice, Toast, ToastType } from '../../src/types'
+import type { AppStatus, AudioDevice, Toast, ToastType, ParameterSnapshot } from '../../src/types'
 
 let activePresetId: string | null = null
 let activeLinks: AudioLink[] = []
@@ -30,7 +31,8 @@ function getStatus(): AppStatus {
     carlaRunning,
     carlaPlugins,
     linksActive: activeLinks.length,
-    micMonitoring
+    micMonitoring,
+    oscConnected: carlaOsc.isConnected()
   }
 }
 
@@ -105,13 +107,15 @@ export async function activatePreset(id: string): Promise<void> {
 
   const isOff = preset.name === 'Off' && preset.plugins.length === 0
   const hasPlugins = preset.plugins.length > 0
+  const sameCarxp = preset.carxpPath === currentCarxpPath || (!preset.carxpPath && !currentCarxpPath)
 
   if (hasPlugins) {
-    const needsRestart = carlaRunning && preset.carxpPath && preset.carxpPath !== currentCarxpPath
+    const needsRestart = carlaRunning && !sameCarxp
     const needsStart = !carlaRunning
 
     if (needsRestart) {
       sendToast('info', 'Restarting Carla with new project file...')
+      await carlaOsc.disconnect()
       carla.stop()
       carlaRunning = false
       currentCarxpPath = undefined
@@ -135,6 +139,12 @@ export async function activatePreset(id: string): Promise<void> {
         if (carlaPlugins.length === 0) {
           sendToast('warning', 'Carla started but no plugins detected yet. The preset may not work correctly.')
         }
+        // Connect OSC after Carla is ready
+        try {
+          carlaOsc.connect()
+        } catch {
+          sendToast('warning', 'OSC connection failed — parameter control unavailable')
+        }
       } else {
         sendToast('error', 'Failed to launch Carla. Install it via: flatpak install studio.kx.carla')
       }
@@ -150,6 +160,20 @@ export async function activatePreset(id: string): Promise<void> {
 
   activeLinks = links
   activePresetId = id
+
+  // Apply parameter snapshots via OSC (instant — no Carla restart needed)
+  if (preset.parameterSnapshots && preset.parameterSnapshots.length > 0 && carlaOsc.isConnected()) {
+    try {
+      for (const snap of preset.parameterSnapshots) {
+        for (const param of snap.parameters) {
+          await carlaOsc.setParameterValue(snap.pluginId, param.index, param.value)
+        }
+      }
+    } catch {
+      sendToast('warning', 'Some parameters could not be restored via OSC')
+    }
+  }
+
   broadcastStatus()
 }
 
@@ -294,6 +318,49 @@ export function registerIpcHandlers(): void {
 
     if (result.canceled || result.filePaths.length === 0) return null
     return result.filePaths[0]
+  })
+
+  // --- OSC ---
+
+  ipcMain.handle(IPC.OSC_CONNECT, (_event, port?: number) => {
+    carlaOsc.connect(port)
+    return true
+  })
+
+  ipcMain.handle(IPC.OSC_DISCONNECT, async () => {
+    await carlaOsc.disconnect()
+  })
+
+  ipcMain.handle(IPC.OSC_IS_CONNECTED, () => {
+    return carlaOsc.isConnected()
+  })
+
+  ipcMain.handle(IPC.OSC_SET_PARAMETER, async (_event, pluginId: number, paramIndex: number, value: number) => {
+    await carlaOsc.setParameterValue(pluginId, paramIndex, value)
+  })
+
+  ipcMain.handle(IPC.OSC_SET_PLUGIN_ACTIVE, async (_event, pluginId: number, active: boolean) => {
+    await carlaOsc.setPluginActive(pluginId, active)
+  })
+
+  ipcMain.handle(IPC.OSC_SET_DRYWET, async (_event, pluginId: number, value: number) => {
+    await carlaOsc.setDryWet(pluginId, value)
+  })
+
+  ipcMain.handle(IPC.OSC_SET_VOLUME, async (_event, pluginId: number, value: number) => {
+    await carlaOsc.setVolume(pluginId, value)
+  })
+
+  ipcMain.handle(IPC.OSC_SNAPSHOT_RESTORE, async (_event, snapshots: ParameterSnapshot[]) => {
+    if (!carlaOsc.isConnected()) {
+      sendToast('warning', 'OSC not connected — cannot restore parameters')
+      return
+    }
+    for (const snap of snapshots) {
+      for (const param of snap.parameters) {
+        await carlaOsc.setParameterValue(snap.pluginId, param.index, param.value)
+      }
+    }
   })
 
   // --- Status ---

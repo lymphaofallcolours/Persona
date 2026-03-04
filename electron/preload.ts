@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from './ipc/channels'
 import type {
-  Preset, AudioDevice, AppStatus, DeviceSelection, DeviceState, Toast
+  Preset, AudioDevice, AppStatus, DeviceSelection, DeviceState, Toast, ParameterSnapshot
 } from '../src/types'
 
 export interface PersonaAPI {
@@ -42,6 +42,16 @@ export interface PersonaAPI {
   micMonitor: {
     toggle(): Promise<boolean>
     isOn(): Promise<boolean>
+  }
+  osc: {
+    connect(port?: number): Promise<boolean>
+    disconnect(): Promise<void>
+    isConnected(): Promise<boolean>
+    setParameter(pluginId: number, paramIndex: number, value: number): Promise<void>
+    setPluginActive(pluginId: number, active: boolean): Promise<void>
+    setDryWet(pluginId: number, value: number): Promise<void>
+    setVolume(pluginId: number, value: number): Promise<void>
+    restoreSnapshot(snapshots: ParameterSnapshot[]): Promise<void>
   }
   miniPanel: {
     toggle(): Promise<void>
@@ -98,6 +108,16 @@ const api: PersonaAPI = {
   micMonitor: {
     toggle: () => ipcRenderer.invoke(IPC.MIC_MONITOR_TOGGLE),
     isOn: () => ipcRenderer.invoke(IPC.MIC_MONITOR_GET)
+  },
+  osc: {
+    connect: (port?) => ipcRenderer.invoke(IPC.OSC_CONNECT, port),
+    disconnect: () => ipcRenderer.invoke(IPC.OSC_DISCONNECT),
+    isConnected: () => ipcRenderer.invoke(IPC.OSC_IS_CONNECTED),
+    setParameter: (pluginId, paramIndex, value) => ipcRenderer.invoke(IPC.OSC_SET_PARAMETER, pluginId, paramIndex, value),
+    setPluginActive: (pluginId, active) => ipcRenderer.invoke(IPC.OSC_SET_PLUGIN_ACTIVE, pluginId, active),
+    setDryWet: (pluginId, value) => ipcRenderer.invoke(IPC.OSC_SET_DRYWET, pluginId, value),
+    setVolume: (pluginId, value) => ipcRenderer.invoke(IPC.OSC_SET_VOLUME, pluginId, value),
+    restoreSnapshot: (snapshots) => ipcRenderer.invoke(IPC.OSC_SNAPSHOT_RESTORE, snapshots)
   },
   miniPanel: {
     toggle: () => ipcRenderer.invoke('mini-panel:toggle')

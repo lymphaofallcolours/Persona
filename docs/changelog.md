@@ -7,6 +7,9 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.6.0] — 2026-03-04
+- feat(osc): add Carla OSC integration for real-time parameter control (701e0cd)
+
 ## [0.5.0] — 2026-03-04
 - feat: add app icon, tray icon, and MIT license (2c24b5d)
 

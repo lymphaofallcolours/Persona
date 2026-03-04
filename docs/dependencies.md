@@ -19,6 +19,12 @@ For each dependency, document:
 **Chosen over:** `crypto.randomUUID()` (Node 19+ only, Electron may not always have it), nanoid (less standard).
 **Removal risk:** Low — used only in `presets.ts`. Easy to swap.
 
+### node-osc
+
+**Purpose:** OSC (Open Sound Control) UDP client for real-time Carla plugin parameter control.
+**Chosen over:** osc-js (heavier, browser-focused), osc-min (lower-level, no TypeScript types).
+**Removal risk:** Medium — OSC parameter control feature depends on it, but core preset switching works without it.
+
 ---
 
 ## Dev Dependencies

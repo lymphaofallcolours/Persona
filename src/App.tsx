@@ -6,6 +6,7 @@ import { DeviceSelector } from './components/DeviceSelector'
 import { StatusBar } from './components/StatusBar'
 import { CarlaControls } from './components/CarlaControls'
 import { ToastContainer } from './components/Toast'
+import { ParameterPanel } from './components/ParameterPanel'
 import { MiniPanel } from './components/MiniPanel'
 
 const isMini = new URLSearchParams(window.location.search).has('mini')
@@ -23,7 +24,8 @@ function MainApp() {
     carlaRunning: false,
     carlaPlugins: [],
     linksActive: 0,
-    micMonitoring: false
+    micMonitoring: false,
+    oscConnected: false
   })
   const [editingPreset, setEditingPreset] = useState<Preset | null | undefined>(undefined)
 
@@ -53,6 +55,11 @@ function MainApp() {
       await window.persona.presets.update(editingPreset.id, data)
     }
     setEditingPreset(undefined)
+    refreshPresets()
+  }
+
+  const handleSaveSnapshot = async (presetId: string, snapshots: import('./types').ParameterSnapshot[]) => {
+    await window.persona.presets.update(presetId, { parameterSnapshots: snapshots } as any)
     refreshPresets()
   }
 
@@ -92,6 +99,11 @@ function MainApp() {
         />
       </main>
 
+      <ParameterPanel
+        status={status}
+        activePreset={presets.find(p => p.id === status.activePresetId)}
+        onSaveSnapshot={handleSaveSnapshot}
+      />
       <StatusBar status={status} presets={presets} />
       <ToastContainer />
 

@@ -16,6 +16,14 @@ Each entry captures a non-obvious technical decision. Record a decision when:
 
 <!-- Entries below — newest first -->
 
+## 2026-03-04 — Carla OSC integration for real-time parameter control
+
+**Status:** Accepted
+**Context:** Preset switching with different `.carxp` files requires restarting Carla (~2s delay). Carla exposes an OSC API for real-time plugin parameter control.
+**Decision:** Add `node-osc` library for UDP OSC messaging. New `carlaOsc.ts` service handles connection/parameter control. Smart preset switching: same `.carxp` presets switch instantly via OSC parameter snapshots; different `.carxp` still restarts Carla. Parameter snapshots stored per-preset. ParameterPanel UI shows real-time sliders.
+**Alternatives rejected:** (1) Carla's Python API — requires embedding Python, adds complexity. (2) `osc-js` — heavier, browser-focused. (3) Parsing `.carxp` XML directly — fragile, can't control live parameters.
+**Consequences:** Instant preset switching when `.carxp` is shared. OSC port fixed at 22752 via `CARLA_OSC_UDP_PORT` env var. Bidirectional messaging is limited — no parameter change callbacks from Carla, so UI shows intended values not actual.
+
 ## 2026-03-04 — .carxp file association via Carla restart
 
 **Status:** Accepted

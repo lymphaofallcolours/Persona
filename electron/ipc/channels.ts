@@ -30,6 +30,17 @@ export const IPC = {
   // Dialog
   DIALOG_OPEN_FILE: 'dialog:open-file',
 
+  // OSC (Carla parameter control)
+  OSC_CONNECT: 'osc:connect',
+  OSC_DISCONNECT: 'osc:disconnect',
+  OSC_IS_CONNECTED: 'osc:is-connected',
+  OSC_SET_PARAMETER: 'osc:set-parameter',
+  OSC_SET_PLUGIN_ACTIVE: 'osc:set-plugin-active',
+  OSC_SET_DRYWET: 'osc:set-drywet',
+  OSC_SET_VOLUME: 'osc:set-volume',
+  OSC_SNAPSHOT_SAVE: 'osc:snapshot-save',
+  OSC_SNAPSHOT_RESTORE: 'osc:snapshot-restore',
+
   // Status
   STATUS_GET: 'status:get',
   STATUS_CHANGED: 'status:changed',

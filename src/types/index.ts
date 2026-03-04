@@ -1,9 +1,38 @@
+export interface ParameterValue {
+  index: number
+  name: string
+  value: number
+}
+
+export interface ParameterSnapshot {
+  pluginId: number
+  pluginName: string
+  parameters: ParameterValue[]
+}
+
+export interface PluginInfo {
+  id: number
+  name: string
+  active: boolean
+  parameterCount: number
+}
+
+export interface ParameterInfo {
+  index: number
+  name: string
+  value: number
+  min: number
+  max: number
+  defaultValue: number
+}
+
 export interface Preset {
   id: string
   name: string
   color: string
   plugins: string[]
   carxpPath?: string
+  parameterSnapshots?: ParameterSnapshot[]
   isFactory: boolean
 }
 
@@ -20,6 +49,7 @@ export interface AppStatus {
   carlaPlugins: string[]
   linksActive: number
   micMonitoring: boolean
+  oscConnected: boolean
 }
 
 export interface PresetConfig {

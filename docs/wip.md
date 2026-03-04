@@ -35,7 +35,8 @@
   - Sessions dropdown in App.tsx header with save/load/delete
   - 6 new tests for session CRUD
 - Previous: Carla OSC integration (v3) — carlaOsc.ts, ParameterPanel, smart switching
-- Total: 108 tests, all passing across 11 test files
+- Additional PresetPanel tests for export/import buttons (3 tests)
+- Total: 111 tests, all passing across 11 test files
 
 ### In Progress
 

@@ -16,6 +16,22 @@ Each entry captures a non-obvious technical decision. Record a decision when:
 
 <!-- Entries below — newest first -->
 
+## 2026-03-04 — Session profiles for saving/restoring app state
+
+**Status:** Accepted
+**Context:** User switches between different audio setups for different activities (game sessions, recording, practice). Manually reconfiguring devices, active preset, and group view each time is tedious.
+**Decision:** Add `SessionProfile` type stored in `presets.json` alongside presets/groups. Sessions capture: active preset ID, selected input/output devices, and selected group tab. Save/load via header dropdown. Loading a session sets devices, activates preset, and restores UI state. No schema version bump — `sessions` field added with empty-array fallback in migration logic.
+**Alternatives rejected:** (1) Separate session files — adds file management complexity. (2) Browser localStorage — not accessible from main process for device/preset activation.
+**Consequences:** Sessions reference preset IDs — if a preset is deleted, loading that session will show a warning toast but still restore devices and group view. Session dropdown lives in the header bar.
+
+## 2026-03-04 — Preset export/import via .persona files
+
+**Status:** Accepted
+**Context:** User mentioned others may use Persona with their own presets. Need a way to share preset configurations between machines.
+**Decision:** `.persona` JSON file format containing presets + referenced groups. Export strips `isFactory` and `hotbarSlot` (personal preferences). Import regenerates all UUIDs and remaps group references to avoid collisions. Available via context menu (single preset) and toolbar buttons (Import/Export All).
+**Alternatives rejected:** (1) ZIP bundle with .carxp files — too complex for v1, .carxp paths are machine-specific. (2) Clipboard copy/paste — not persistent, can't share as files.
+**Consequences:** Imported presets are always non-factory. `carxpPath` is included but may not resolve on target machine. Group names may duplicate if user imports presets from a setup with same group names.
+
 ## 2026-03-04 — Preset groups, hotbar, per-preset volume, and global hotkeys
 
 **Status:** Accepted

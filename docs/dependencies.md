@@ -73,6 +73,39 @@ For each dependency, document:
 **Purpose:** PostCSS plugin for CSS vendor prefixes (used by Tailwind).
 **Removal risk:** Low — build tooling only.
 
+### vitest
+
+**Purpose:** Unit and component test runner — fast, native ESM, TypeScript support.
+**Chosen over:** Jest (slower, ESM support weaker), Mocha (less integrated).
+**Removal risk:** Low — test tooling only, no production code depends on it.
+
+### @testing-library/react
+
+**Purpose:** Test React components by interacting with them as users would.
+**Chosen over:** Enzyme (deprecated), direct DOM manipulation (fragile).
+**Removal risk:** Low — test tooling only.
+
+### @testing-library/jest-dom
+
+**Purpose:** Custom matchers for DOM assertions (toBeVisible, toHaveTextContent, etc.).
+**Removal risk:** Low — test tooling only.
+
+### jsdom
+
+**Purpose:** Simulates browser DOM environment for component tests running in Node.
+**Removal risk:** Low — test tooling only.
+
+### @playwright/test
+
+**Purpose:** E2E testing framework with Electron support.
+**Chosen over:** Spectron (deprecated), Cypress (limited Electron support).
+**Removal risk:** Low — E2E test tooling only.
+
+### @types/react / @types/react-dom / @types/uuid
+
+**Purpose:** TypeScript type definitions for React and uuid packages.
+**Removal risk:** Low — dev tooling only.
+
 ---
 
 ## System Dependencies

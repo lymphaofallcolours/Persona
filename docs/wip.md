@@ -5,18 +5,17 @@
 ## Current Session
 
 **Date:** 2026-03-04
-**Goal:** Test infrastructure + remaining docs
+**Goal:** Test infrastructure, mic monitoring, remaining polish
 
 ### Completed This Session
 
-- Set up vitest test infrastructure (vitest, @testing-library/react, Playwright, jsdom)
-- Unit tests: pipewire (5), presets (8), devices (10), carla (7) — 30 unit tests
-- Component tests: PresetPanel (8), DeviceSelector (5) — 13 component tests
-- Total: 43 tests, all passing
+- Unit tests: pipewire (7), presets (8), devices (10), carla (7) — 32 unit tests
+- Component tests: PresetPanel (8), PresetEditor (11), DeviceSelector (5) — 24 component tests
+- Total: 56 tests, all passing across 7 test files
+- Mic monitoring toggle: buildMonitorLinks, IPC handlers, status bar button (TDD)
+- Playwright E2E scaffold: config + 2 test files (preset switching, device selection)
 - Removed legacy `persona.py` and `.claude/rules/persona.py.md`
-- Created `.claude/rules/electron.md` with TS migration rules
-- Updated `docs/adding-voices.md` for new GUI preset editor workflow
-- Updated `docs/testing.md` with TDD workflow and test pyramid
+- Updated docs: adding-voices.md, testing.md, dependencies.md, wip.md
 - Configured vitest with React plugin for JSX transform in component tests
 
 ### In Progress
@@ -25,28 +24,26 @@
 
 ### Next Steps
 
-1. Add mic monitoring toggle (task #14)
-2. Write PresetEditor component test
-3. Set up Playwright E2E test scaffold
-4. Update `docs/dependencies.md` with all npm dependencies
-5. v2: `.carxp` file association per preset
-6. v3: Carla OSC integration for plugin parameter control
-7. Test the app on actual hardware (`npm run dev`)
+1. v2: `.carxp` file association per preset (load Carla project on switch)
+2. Write StatusBar component test
+3. Fill out E2E tests (requires built app: `npm run build`)
+4. Test the app on actual hardware (`npm run dev`)
+5. v3: Carla OSC integration for plugin parameter control
 
 ---
 
 ## Previous Sessions
 
+### 2026-03-04 — Test infrastructure + legacy cleanup (session 3)
+- Set up vitest, @testing-library/react, Playwright
+- Wrote first batch of tests (43 passing)
+- Removed legacy Python code
+
 ### 2026-03-04 — Full TypeScript migration (session 2)
 - Phase 1-6 of migration plan completed
 - Electron + React + Tailwind scaffold with all components
-- PipeWire service, preset store, device discovery, Carla lifecycle
-- System tray, mini panel, toast notifications
-- electron-builder packaging config
-- Fixed post-commit hook infinite recursion
-- Created GitHub repo (lymphaofallcolours/Persona), pushed all commits
+- All services, IPC, system tray, mini panel
 
 ### 2026-03-04 — Documentation system setup (session 1)
-- Renamed `doc/` → `docs/`, created 13 docs files
-- Created CLAUDE.md, VERSION, git hooks, .claude/rules/persona.py.md
+- Created CLAUDE.md, docs system, git hooks
 - Created GitHub remote, pushed initial commit

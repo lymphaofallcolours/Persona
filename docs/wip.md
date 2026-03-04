@@ -28,8 +28,14 @@
   - IPC channels `PRESET_EXPORT` and `PRESET_IMPORT` with file dialog handlers
   - PresetPanel: Import/Export All toolbar buttons, Export in context menu
   - 5 new tests (export strips fields, groups included, import new IDs, group remap, invalid data)
+- Session Profiles:
+  - `SessionProfile` type, `sessions: SessionProfile[]` added to `PresetConfig`
+  - Session CRUD in `presets.ts`: `saveSession()`, `getSession()`, `updateSessionName()`, `deleteSession()`
+  - 5 IPC channels + handlers (save captures devices + active preset, load restores them)
+  - Sessions dropdown in App.tsx header with save/load/delete
+  - 6 new tests for session CRUD
 - Previous: Carla OSC integration (v3) — carlaOsc.ts, ParameterPanel, smart switching
-- Total: 102 tests, all passing across 11 test files
+- Total: 108 tests, all passing across 11 test files
 
 ### In Progress
 
@@ -39,11 +45,9 @@
 
 1. Replace placeholder PNG icons with user-provided custom PNGs
 2. Test packaging: `npm run package` to build .AppImage / .deb
-3. Manual testing: full preset workflow with groups, hotbar, volume, hotkeys
-4. Session profiles (save/restore full app state)
-5. Preset export/import
-6. Crossfade toggle between presets
-7. Discord overlay integration
+3. Manual testing: full preset workflow with groups, hotbar, volume, hotkeys, sessions
+4. Crossfade toggle between presets (needs research — may conflict with no-audio-processing rule)
+5. Discord overlay integration (research needed)
 
 ---
 

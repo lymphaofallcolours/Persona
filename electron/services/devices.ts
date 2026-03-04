@@ -71,15 +71,35 @@ export async function getOutputDevices(): Promise<AudioDevice[]> {
   return all.filter(d => d.name.startsWith('alsa_output.'))
 }
 
+// System PipeWire nodes that are NOT Carla plugins
+const SYSTEM_NODES = new Set([
+  'Midi-Bridge',
+  'Midi Through',
+  'pipewire',
+])
+
+const SYSTEM_PREFIXES = [
+  'alsa_',
+  'pipewire',
+  'v4l2',
+  'libcamera',
+  'Midi',
+]
+
 /**
  * Get all Carla plugin clients visible in PipeWire.
- * These are non-ALSA output ports (plugin outputs).
+ * Filters out system nodes (ALSA devices, MIDI bridges, video capture, etc.)
+ * to show only actual audio plugins hosted by Carla.
  */
 export async function getCarlaPlugins(): Promise<string[]> {
   const output = await exec('pw-link', ['-o'])
   const all = parsePorts(output, 'output')
   return all
-    .filter(d => !d.name.startsWith('alsa_') && !d.name.startsWith('pipewire'))
+    .filter(d => {
+      if (SYSTEM_NODES.has(d.name)) return false
+      if (SYSTEM_PREFIXES.some(prefix => d.name.startsWith(prefix))) return false
+      return true
+    })
     .map(d => d.name)
 }
 

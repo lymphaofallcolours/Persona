@@ -3,6 +3,9 @@ import { join } from 'path'
 import { registerIpcHandlers, stopPolling, activatePreset } from './ipc/handlers'
 import { createTray, updateTrayMenu, destroyTray } from './tray'
 import * as presetStore from './services/presets'
+import * as carla from './services/carla'
+import * as carlaOsc from './services/carlaOsc'
+import * as devicesService from './services/devices'
 
 let mainWindow: BrowserWindow | null = null
 let miniPanel: BrowserWindow | null = null
@@ -125,6 +128,25 @@ app.whenReady().then(() => {
     })
   }
 
+  // Auto-launch Carla on startup (headless by default)
+  if (!carla.isRunning()) {
+    const launched = carla.launch()
+    if (launched) {
+      // Wait for Carla to be ready, then connect OSC
+      const waitForCarla = async () => {
+        for (let i = 0; i < 20; i++) {
+          await new Promise(r => setTimeout(r, 500))
+          const plugins = await devicesService.getCarlaPlugins()
+          if (plugins.length > 0 || carla.isRunning()) {
+            try { carlaOsc.connect() } catch { /* OSC optional */ }
+            break
+          }
+        }
+      }
+      waitForCarla()
+    }
+  }
+
   // Listen for mini panel toggle from renderer
   ipcMain.handle('mini-panel:toggle', () => {
     if (miniPanel && !miniPanel.isDestroyed()) {
@@ -140,6 +162,7 @@ app.on('before-quit', () => {
   isQuitting = true
   globalShortcut.unregisterAll()
   stopPolling()
+  carla.stop()
   destroyTray()
 })
 

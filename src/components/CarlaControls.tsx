@@ -6,10 +6,10 @@ interface CarlaControlsProps {
 }
 
 export function CarlaControls({ status }: CarlaControlsProps) {
-  const [minimized, setMinimized] = useState(false)
+  const [headless, setHeadless] = useState(true)
 
   useEffect(() => {
-    window.persona.carla.getMinimized().then(setMinimized)
+    window.persona.carla.getMinimized().then(setHeadless)
   }, [])
 
   const handleLaunch = async () => {
@@ -20,9 +20,9 @@ export function CarlaControls({ status }: CarlaControlsProps) {
     await window.persona.carla.stop()
   }
 
-  const handleToggleMinimized = async () => {
-    const next = !minimized
-    setMinimized(next)
+  const handleToggleHeadless = async () => {
+    const next = !headless
+    setHeadless(next)
     await window.persona.carla.setMinimized(next)
   }
 
@@ -45,15 +45,15 @@ export function CarlaControls({ status }: CarlaControlsProps) {
       </span>
 
       <button
-        onClick={handleToggleMinimized}
-        title={minimized ? 'Carla launches minimized' : 'Carla launches with window visible'}
+        onClick={handleToggleHeadless}
+        title={headless ? 'Carla runs without GUI (headless). Click to show GUI on next launch.' : 'Carla runs with GUI window. Click to switch to headless.'}
         className={`px-1.5 py-0.5 rounded text-[10px] border ${
-          minimized
+          headless
             ? 'bg-blue-900/30 border-blue-700 text-blue-400'
             : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'
         }`}
       >
-        {minimized ? 'Hidden' : 'Visible'}
+        {headless ? 'Headless' : 'GUI'}
       </button>
 
       {status.carlaRunning ? (

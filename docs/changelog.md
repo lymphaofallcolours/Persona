@@ -7,6 +7,9 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.9.3] — 2026-03-04
+- fix(carla): auto-launch headless, fix plugin detection, stop on quit (4dd87a3)
+
 ## [0.9.2] — 2026-03-04
 - fix(carla): fix process cleanup, add minimize toggle, rename Monitor (ac74a53)
 

@@ -5,24 +5,29 @@ import { CARLA_OSC_PORT } from './carlaOsc'
 type StatusCallback = (running: boolean, plugins: string[]) => void
 type CrashCallback = () => void
 
-// Default Carla launch commands (tried in order)
-const CARLA_COMMANDS = [
+// Carla launch commands with --no-gui variant (tried in order)
+const CARLA_COMMANDS_GUI = [
   { cmd: 'flatpak', args: ['run', 'studio.kx.carla'] },
   { cmd: 'carla', args: [] }
+]
+
+const CARLA_COMMANDS_HEADLESS = [
+  { cmd: 'flatpak', args: ['run', 'studio.kx.carla', '--no-gui'] },
+  { cmd: 'carla', args: ['--no-gui'] }
 ]
 
 let carlaProcess: ChildProcess | null = null
 let healthInterval: ReturnType<typeof setInterval> | null = null
 let onStatusChange: StatusCallback | null = null
 let onCrash: CrashCallback | null = null
-let launchMinimized = false
+let headlessMode = true // Default to headless
 
-export function setLaunchMinimized(minimized: boolean): void {
-  launchMinimized = minimized
+export function setHeadless(headless: boolean): void {
+  headlessMode = headless
 }
 
-export function getLaunchMinimized(): boolean {
-  return launchMinimized
+export function getHeadless(): boolean {
+  return headlessMode
 }
 
 /**
@@ -39,13 +44,16 @@ export function isRunning(): boolean {
 
 /**
  * Launch Carla, optionally with a .carxp project file.
+ * When headlessMode is true, launches with --no-gui.
  */
 export function launch(projectFile?: string): boolean {
   if (carlaProcess && !carlaProcess.killed) {
     return true // Already running via us
   }
 
-  for (const { cmd, args } of CARLA_COMMANDS) {
+  const commands = headlessMode ? CARLA_COMMANDS_HEADLESS : CARLA_COMMANDS_GUI
+
+  for (const { cmd, args } of commands) {
     try {
       const fullArgs = [...args]
       if (projectFile && existsSync(projectFile)) {
@@ -71,12 +79,6 @@ export function launch(projectFile?: string): boolean {
       })
 
       carlaProcess.unref()
-
-      // Minimize Carla window after it appears (if option is set)
-      if (launchMinimized) {
-        minimizeCarlaWindow()
-      }
-
       return true
     } catch {
       continue
@@ -145,25 +147,4 @@ export function stopHealthPolling(): void {
     clearInterval(healthInterval)
     healthInterval = null
   }
-}
-
-/**
- * Attempt to minimize Carla's window via xdotool.
- * Retries a few times since Carla's window may take a moment to appear.
- */
-function minimizeCarlaWindow(): void {
-  let attempts = 0
-  const interval = setInterval(() => {
-    attempts++
-    if (attempts > 10) {
-      clearInterval(interval)
-      return
-    }
-    try {
-      execFile('xdotool', ['search', '--name', 'Carla', 'windowminimize'], { timeout: 2000 })
-      clearInterval(interval)
-    } catch {
-      // Window not found yet, retry
-    }
-  }, 1000)
 }

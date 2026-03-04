@@ -38,6 +38,16 @@
 - Additional PresetPanel tests for export/import buttons (3 tests)
 - Total: 111 tests, all passing across 11 test files
 
+- UX Polish:
+  - Tray menu: hotbar presets at top with Ctrl+N hints, grouped submenu for preset groups
+  - Click-outside-to-close for session dropdown and context menus
+  - Escape key closes context menus
+  - Empty session name cancels instead of saving
+- Packaging verified: `npm run package` builds successfully
+  - AppImage: 108MB, .deb: 75MB
+  - Build output: `dist/Persona-0.2.0.AppImage`, `dist/persona_0.2.0_amd64.deb`
+- Total: 111 tests, all passing across 11 test files
+
 ### In Progress
 
 - Nothing currently in progress
@@ -45,10 +55,10 @@
 ### Next Steps
 
 1. Replace placeholder PNG icons with user-provided custom PNGs
-2. Test packaging: `npm run package` to build .AppImage / .deb
-3. Manual testing: full preset workflow with groups, hotbar, volume, hotkeys, sessions
-4. Crossfade toggle between presets (needs research — may conflict with no-audio-processing rule)
-5. Discord overlay integration (research needed)
+2. Manual testing: full preset workflow with groups, hotbar, volume, hotkeys, sessions
+3. Crossfade toggle between presets (needs research — may conflict with no-audio-processing rule)
+4. Discord overlay integration (research needed)
+5. Stream Deck / macro pad support (future)
 
 ---
 

@@ -1,5 +1,5 @@
-import { Tray, Menu, nativeImage, BrowserWindow } from 'electron'
-import type { Preset } from '../src/types'
+import { Tray, Menu, nativeImage } from 'electron'
+import { join } from 'path'
 import * as presetStore from './services/presets'
 
 let tray: Tray | null = null
@@ -7,25 +7,8 @@ let activateCallback: ((id: string) => void) | null = null
 let showWindowCallback: (() => void) | null = null
 let quitCallback: (() => void) | null = null
 
-function buildTrayIcon(): Electron.NativeImage {
-  // 16x16 simple icon — a filled circle
-  const size = 16
-  const canvas = Buffer.alloc(size * size * 4)
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const dx = x - size / 2
-      const dy = y - size / 2
-      const dist = Math.sqrt(dx * dx + dy * dy)
-      const offset = (y * size + x) * 4
-      if (dist < size / 2 - 1) {
-        canvas[offset] = 200     // R
-        canvas[offset + 1] = 200 // G
-        canvas[offset + 2] = 200 // B
-        canvas[offset + 3] = 255 // A
-      }
-    }
-  }
-  return nativeImage.createFromBuffer(canvas, { width: size, height: size })
+function getIconPath(): string {
+  return join(__dirname, '../../resources/icons/persona.svg')
 }
 
 export function createTray(callbacks: {
@@ -37,7 +20,7 @@ export function createTray(callbacks: {
   showWindowCallback = callbacks.onShowWindow
   quitCallback = callbacks.onQuit
 
-  tray = new Tray(buildTrayIcon())
+  tray = new Tray(nativeImage.createFromPath(getIconPath()))
   tray.setToolTip('Persona')
 
   tray.on('click', () => {

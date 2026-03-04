@@ -14,6 +14,7 @@ function createMainWindow(): BrowserWindow {
     minWidth: 360,
     minHeight: 480,
     title: 'Persona',
+    icon: join(__dirname, '../../resources/icons/persona.svg'),
     webPreferences: {
       preload: join(__dirname, '../preload/preload.js'),
       contextIsolation: true,

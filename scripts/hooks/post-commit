@@ -6,6 +6,10 @@
 
 set -e
 
+# Prevent infinite recursion: amend triggers another post-commit
+[ -n "$PERSONA_POST_COMMIT_RUNNING" ] && exit 0
+export PERSONA_POST_COMMIT_RUNNING=1
+
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 VERSION_FILE="$REPO_ROOT/VERSION"
 CHANGELOG_FILE="$REPO_ROOT/docs/changelog.md"

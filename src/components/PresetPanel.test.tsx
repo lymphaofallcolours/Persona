@@ -16,7 +16,9 @@ const mockPersona = {
     duplicate: vi.fn().mockResolvedValue(undefined),
     delete: vi.fn().mockResolvedValue(true),
     reorder: vi.fn().mockResolvedValue(undefined),
-    update: vi.fn().mockResolvedValue(undefined)
+    update: vi.fn().mockResolvedValue(undefined),
+    export: vi.fn().mockResolvedValue(true),
+    import: vi.fn().mockResolvedValue({ presetCount: 1, groupCount: 0 })
   },
   groups: {
     create: vi.fn().mockResolvedValue({ id: 'g1', name: 'Test', order: 0 }),
@@ -100,5 +102,23 @@ describe('PresetPanel', () => {
     fireEvent.click(screen.getByText('Delete'))
     expect(screen.getByText('Delete this preset?')).toBeTruthy()
     expect(screen.getByText('Cancel')).toBeTruthy()
+  })
+
+  it('renders import and export buttons', () => {
+    render(<PresetPanel {...defaultProps} />)
+    expect(screen.getByText('Import')).toBeTruthy()
+    expect(screen.getByText('Export All')).toBeTruthy()
+  })
+
+  it('shows export option in context menu', () => {
+    render(<PresetPanel {...defaultProps} />)
+    fireEvent.contextMenu(screen.getByText('Custom'))
+    expect(screen.getByText('Export')).toBeTruthy()
+  })
+
+  it('calls import on import button click', async () => {
+    render(<PresetPanel {...defaultProps} />)
+    fireEvent.click(screen.getByText('Import'))
+    expect(mockPersona.presets.import).toHaveBeenCalled()
   })
 })

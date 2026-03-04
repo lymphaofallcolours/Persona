@@ -22,7 +22,8 @@ function MainApp() {
     activePresetId: null,
     carlaRunning: false,
     carlaPlugins: [],
-    linksActive: 0
+    linksActive: 0,
+    micMonitoring: false
   })
   const [editingPreset, setEditingPreset] = useState<Preset | null | undefined>(undefined)
 

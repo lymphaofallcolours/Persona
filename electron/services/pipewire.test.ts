@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildPresetLinks } from './pipewire'
+import { buildPresetLinks, buildMonitorLinks } from './pipewire'
 
 const MIC = 'alsa_input.test-mic'
 const SINK = 'alsa_output.test-headphones'
@@ -54,5 +54,20 @@ describe('buildPresetLinks', () => {
     // Every pair should have matching L/R
     expect(links.filter(l => l.source.includes('L') || l.destination.includes('L')).length).toBe(3)
     expect(links.filter(l => l.source.includes('R') || l.destination.includes('R')).length).toBe(3)
+  })
+})
+
+describe('buildMonitorLinks', () => {
+  it('creates direct mic-to-output stereo pair', () => {
+    const links = buildMonitorLinks(MIC, SINK)
+    expect(links).toEqual([
+      { source: `${MIC}:capture_FL`, destination: `${SINK}:playback_FL` },
+      { source: `${MIC}:capture_FR`, destination: `${SINK}:playback_FR` }
+    ])
+  })
+
+  it('returns exactly 2 links (stereo pair)', () => {
+    const links = buildMonitorLinks(MIC, SINK)
+    expect(links).toHaveLength(2)
   })
 })

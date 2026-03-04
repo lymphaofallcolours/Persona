@@ -9,6 +9,8 @@ import type { AppStatus, AudioDevice, Toast, ToastType } from '../../src/types'
 
 let activePresetId: string | null = null
 let activeLinks: AudioLink[] = []
+let monitorLinks: AudioLink[] = []
+let micMonitoring = false
 let knownInputs: AudioDevice[] = []
 let knownOutputs: AudioDevice[] = []
 let carlaRunning = false
@@ -26,7 +28,8 @@ function getStatus(): AppStatus {
     activePresetId,
     carlaRunning,
     carlaPlugins,
-    linksActive: activeLinks.length
+    linksActive: activeLinks.length,
+    micMonitoring
   }
 }
 
@@ -229,6 +232,34 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.CARLA_IS_RUNNING, () => {
     return carla.isRunning()
+  })
+
+  // --- Mic Monitor ---
+
+  ipcMain.handle(IPC.MIC_MONITOR_TOGGLE, async () => {
+    const { inputDevice, outputDevice } = await resolveDevices()
+
+    if (micMonitoring) {
+      // Turn off: disconnect monitor links
+      if (monitorLinks.length > 0) {
+        await pipewire.disconnectBatch(monitorLinks)
+        monitorLinks = []
+      }
+      micMonitoring = false
+    } else {
+      // Turn on: create direct mic→output links
+      const links = pipewire.buildMonitorLinks(inputDevice, outputDevice)
+      await pipewire.connectBatch(links)
+      monitorLinks = links
+      micMonitoring = true
+    }
+
+    broadcastStatus()
+    return micMonitoring
+  })
+
+  ipcMain.handle(IPC.MIC_MONITOR_GET, () => {
+    return micMonitoring
   })
 
   // --- Status ---

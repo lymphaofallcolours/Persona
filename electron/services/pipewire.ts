@@ -76,6 +76,19 @@ export async function disconnectBatch(links: AudioLink[]): Promise<void> {
 }
 
 /**
+ * Build direct mic-to-output links for monitoring (hearing yourself).
+ */
+export function buildMonitorLinks(
+  inputDevice: string,
+  outputDevice: string
+): AudioLink[] {
+  return [
+    { source: `${inputDevice}:capture_FL`, destination: `${outputDevice}:playback_FL` },
+    { source: `${inputDevice}:capture_FR`, destination: `${outputDevice}:playback_FR` }
+  ]
+}
+
+/**
  * Build the link chain for a preset.
  * - Empty plugins + name "Off": no links (disconnect everything)
  * - Empty plugins: direct mic → output passthrough

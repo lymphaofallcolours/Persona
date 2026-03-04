@@ -36,6 +36,10 @@ export interface PersonaAPI {
   toast: {
     onShow(callback: (toast: Toast) => void): () => void
   }
+  micMonitor: {
+    toggle(): Promise<boolean>
+    isOn(): Promise<boolean>
+  }
   miniPanel: {
     toggle(): Promise<void>
   }
@@ -84,6 +88,10 @@ const api: PersonaAPI = {
       ipcRenderer.on(IPC.TOAST, handler)
       return () => ipcRenderer.removeListener(IPC.TOAST, handler)
     }
+  },
+  micMonitor: {
+    toggle: () => ipcRenderer.invoke(IPC.MIC_MONITOR_TOGGLE),
+    isOn: () => ipcRenderer.invoke(IPC.MIC_MONITOR_GET)
   },
   miniPanel: {
     toggle: () => ipcRenderer.invoke('mini-panel:toggle')

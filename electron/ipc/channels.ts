@@ -23,6 +23,10 @@ export const IPC = {
   CARLA_STOP: 'carla:stop',
   CARLA_IS_RUNNING: 'carla:is-running',
 
+  // Mic monitoring
+  MIC_MONITOR_TOGGLE: 'mic-monitor:toggle',
+  MIC_MONITOR_GET: 'mic-monitor:get',
+
   // Status
   STATUS_GET: 'status:get',
   STATUS_CHANGED: 'status:changed',

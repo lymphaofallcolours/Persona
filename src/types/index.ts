@@ -19,6 +19,7 @@ export interface AppStatus {
   carlaRunning: boolean
   carlaPlugins: string[]
   linksActive: number
+  micMonitoring: boolean
 }
 
 export interface PresetConfig {

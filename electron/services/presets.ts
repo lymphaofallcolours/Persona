@@ -3,7 +3,7 @@ import { join } from 'path'
 import { homedir } from 'os'
 import { app } from 'electron'
 import { v4 as uuidv4 } from 'uuid'
-import type { Preset, PresetConfig, PresetGroup, PersonaExport } from '../../src/types'
+import type { Preset, PresetConfig, PresetGroup, PersonaExport, SessionProfile } from '../../src/types'
 
 const CONFIG_DIR = join(homedir(), '.config', 'persona')
 const CONFIG_FILE = join(CONFIG_DIR, 'presets.json')
@@ -34,6 +34,9 @@ function migrateConfig(config: any): PresetConfig {
   }
   if (!config.groups) {
     config.groups = []
+  }
+  if (!config.sessions) {
+    config.sessions = []
   }
   return config as PresetConfig
 }
@@ -269,4 +272,55 @@ export function getHotbarPresets(): Preset[] {
   return loadConfig().presets
     .filter(p => p.hotbarSlot !== undefined)
     .sort((a, b) => (a.hotbarSlot ?? 0) - (b.hotbarSlot ?? 0))
+}
+
+// --- Sessions ---
+
+export function getSessions(): SessionProfile[] {
+  return loadConfig().sessions
+}
+
+export function saveSession(
+  name: string,
+  activePresetId: string | null,
+  selectedGroupId: string | null
+): SessionProfile {
+  const config = loadConfig()
+  const now = new Date().toISOString()
+  const session: SessionProfile = {
+    id: uuidv4(),
+    name,
+    activePresetId,
+    selectedInput: config.selectedInput,
+    selectedOutput: config.selectedOutput,
+    selectedGroupId,
+    createdAt: now,
+    updatedAt: now
+  }
+  config.sessions.push(session)
+  saveConfig(config)
+  return session
+}
+
+export function getSession(id: string): SessionProfile | undefined {
+  return loadConfig().sessions.find(s => s.id === id)
+}
+
+export function updateSessionName(id: string, name: string): SessionProfile | undefined {
+  const config = loadConfig()
+  const session = config.sessions.find(s => s.id === id)
+  if (!session) return undefined
+  session.name = name
+  session.updatedAt = new Date().toISOString()
+  saveConfig(config)
+  return session
+}
+
+export function deleteSession(id: string): boolean {
+  const config = loadConfig()
+  const index = config.sessions.findIndex(s => s.id === id)
+  if (index === -1) return false
+  config.sessions.splice(index, 1)
+  saveConfig(config)
+  return true
 }

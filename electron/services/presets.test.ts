@@ -23,7 +23,7 @@ vi.mock('os', async () => {
 })
 
 // Now import after mocks are set up
-const { loadConfig, saveConfig, getPresets, createPreset, updatePreset, deletePreset, duplicatePreset, reorderPresets, getGroups, createGroup, updateGroup, deleteGroup, getHotbarPresets, exportPresets, importPresets } = await import('./presets')
+const { loadConfig, saveConfig, getPresets, createPreset, updatePreset, deletePreset, duplicatePreset, reorderPresets, getGroups, createGroup, updateGroup, deleteGroup, getHotbarPresets, exportPresets, importPresets, getSessions, saveSession, getSession, updateSessionName, deleteSession } = await import('./presets')
 
 describe('PresetStore', () => {
   beforeEach(() => {
@@ -238,6 +238,53 @@ describe('Export/Import', () => {
   it('rejects invalid import data', () => {
     expect(() => importPresets({ version: 99, exportedAt: '', presets: [], groups: [] })).toThrow()
     expect(() => importPresets(null as any)).toThrow()
+  })
+})
+
+describe('Sessions', () => {
+  beforeEach(() => {
+    const configDir = join(tempDir, '.config', 'persona')
+    rmSync(configDir, { recursive: true, force: true })
+  })
+
+  it('starts with no sessions', () => {
+    expect(getSessions()).toEqual([])
+  })
+
+  it('saves a session with current state', () => {
+    const session = saveSession('Game Night', 'preset-123', 'group-456')
+    expect(session.id).toBeTruthy()
+    expect(session.name).toBe('Game Night')
+    expect(session.activePresetId).toBe('preset-123')
+    expect(session.selectedGroupId).toBe('group-456')
+    expect(session.selectedInput).toBe('auto')
+    expect(session.selectedOutput).toBe('auto')
+    expect(session.createdAt).toBeTruthy()
+  })
+
+  it('persists sessions across loads', () => {
+    saveSession('Test', null, null)
+    expect(getSessions().length).toBe(1)
+    expect(getSessions()[0].name).toBe('Test')
+  })
+
+  it('retrieves a session by id', () => {
+    const session = saveSession('Find Me', 'p1', null)
+    const found = getSession(session.id)
+    expect(found?.name).toBe('Find Me')
+  })
+
+  it('updates a session name', () => {
+    const session = saveSession('Old', null, null)
+    const updated = updateSessionName(session.id, 'New')
+    expect(updated?.name).toBe('New')
+    expect(getSession(session.id)?.name).toBe('New')
+  })
+
+  it('deletes a session', () => {
+    const session = saveSession('Delete Me', null, null)
+    expect(deleteSession(session.id)).toBe(true)
+    expect(getSessions().length).toBe(0)
   })
 })
 

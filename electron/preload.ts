@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from './ipc/channels'
 import type {
-  Preset, PresetGroup, AudioDevice, AppStatus, DeviceSelection, DeviceState, Toast, ParameterSnapshot
+  Preset, PresetGroup, AudioDevice, AppStatus, DeviceSelection, DeviceState, Toast, ParameterSnapshot, SessionProfile
 } from '../src/types'
 
 export interface PersonaAPI {
@@ -22,6 +22,13 @@ export interface PersonaAPI {
     update(id: string, name: string): Promise<PresetGroup | undefined>
     delete(id: string): Promise<boolean>
     reorder(orderedIds: string[]): Promise<void>
+  }
+  sessions: {
+    getAll(): Promise<SessionProfile[]>
+    save(name: string, activePresetId: string | null, selectedGroupId: string | null): Promise<SessionProfile>
+    load(id: string): Promise<SessionProfile | null>
+    update(id: string, name: string): Promise<SessionProfile | undefined>
+    delete(id: string): Promise<boolean>
   }
   devices: {
     getInputs(): Promise<AudioDevice[]>
@@ -85,6 +92,13 @@ const api: PersonaAPI = {
     update: (id, name) => ipcRenderer.invoke(IPC.GROUP_UPDATE, id, name),
     delete: (id) => ipcRenderer.invoke(IPC.GROUP_DELETE, id),
     reorder: (orderedIds) => ipcRenderer.invoke(IPC.GROUP_REORDER, orderedIds)
+  },
+  sessions: {
+    getAll: () => ipcRenderer.invoke(IPC.SESSION_GET_ALL),
+    save: (name, activePresetId, selectedGroupId) => ipcRenderer.invoke(IPC.SESSION_SAVE, name, activePresetId, selectedGroupId),
+    load: (id) => ipcRenderer.invoke(IPC.SESSION_LOAD, id),
+    update: (id, name) => ipcRenderer.invoke(IPC.SESSION_UPDATE, id, name),
+    delete: (id) => ipcRenderer.invoke(IPC.SESSION_DELETE, id)
   },
   devices: {
     getInputs: () => ipcRenderer.invoke(IPC.DEVICES_GET_INPUTS),

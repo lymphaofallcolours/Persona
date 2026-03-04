@@ -67,6 +67,7 @@ export interface PresetConfig {
   selectedOutput: string
   presets: Preset[]
   groups: PresetGroup[]
+  sessions: SessionProfile[]
 }
 
 export interface DeviceSelection {
@@ -78,6 +79,17 @@ export interface DeviceState {
   inputs: AudioDevice[]
   outputs: AudioDevice[]
   selected: DeviceSelection
+}
+
+export interface SessionProfile {
+  id: string
+  name: string
+  activePresetId: string | null
+  selectedInput: string
+  selectedOutput: string
+  selectedGroupId: string | null
+  createdAt: string
+  updatedAt: string
 }
 
 export interface PersonaExport {

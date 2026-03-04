@@ -7,7 +7,7 @@ import * as carla from '../services/carla'
 import * as carlaOsc from '../services/carlaOsc'
 import type { AudioLink } from '../services/pipewire'
 import { readFileSync, writeFileSync } from 'fs'
-import type { AppStatus, AudioDevice, Toast, ToastType, ParameterSnapshot, PersonaExport } from '../../src/types'
+import type { AppStatus, AudioDevice, Toast, ToastType, ParameterSnapshot, PersonaExport, SessionProfile } from '../../src/types'
 
 let activePresetId: string | null = null
 let activeLinks: AudioLink[] = []
@@ -310,6 +310,43 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.GROUP_REORDER, (_event, orderedIds: string[]) => {
     presetStore.reorderGroups(orderedIds)
+  })
+
+  // --- Sessions ---
+
+  ipcMain.handle(IPC.SESSION_GET_ALL, () => {
+    return presetStore.getSessions()
+  })
+
+  ipcMain.handle(IPC.SESSION_SAVE, (_event, name: string, activePresetId: string | null, selectedGroupId: string | null) => {
+    return presetStore.saveSession(name, activePresetId, selectedGroupId)
+  })
+
+  ipcMain.handle(IPC.SESSION_LOAD, async (_event, id: string) => {
+    const session = presetStore.getSession(id)
+    if (!session) return null
+
+    // Apply device selection
+    presetStore.setSelectedDevices(session.selectedInput, session.selectedOutput)
+
+    // Activate preset if one was saved
+    if (session.activePresetId) {
+      try {
+        await activatePreset(session.activePresetId)
+      } catch {
+        sendToast('warning', 'Session preset no longer exists')
+      }
+    }
+
+    return session
+  })
+
+  ipcMain.handle(IPC.SESSION_UPDATE, (_event, id: string, name: string) => {
+    return presetStore.updateSessionName(id, name)
+  })
+
+  ipcMain.handle(IPC.SESSION_DELETE, (_event, id: string) => {
+    return presetStore.deleteSession(id)
   })
 
   // --- Devices ---

@@ -7,6 +7,9 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.9.0] — 2026-03-04
+- feat(sessions): add session profiles for saving/restoring app state (92c0ac6)
+
 ## [0.8.0] — 2026-03-04
 - feat(presets): add preset export/import via .persona files (d71ab3b)
 

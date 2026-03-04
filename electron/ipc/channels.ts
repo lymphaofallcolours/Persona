@@ -17,6 +17,13 @@ export const IPC = {
   GROUP_DELETE: 'group:delete',
   GROUP_REORDER: 'group:reorder',
 
+  // Sessions
+  SESSION_GET_ALL: 'session:get-all',
+  SESSION_SAVE: 'session:save',
+  SESSION_LOAD: 'session:load',
+  SESSION_DELETE: 'session:delete',
+  SESSION_UPDATE: 'session:update',
+
   // Devices
   DEVICES_GET_INPUTS: 'devices:get-inputs',
   DEVICES_GET_OUTPUTS: 'devices:get-outputs',

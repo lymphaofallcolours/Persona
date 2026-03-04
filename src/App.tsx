@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { Preset, PresetGroup, AppStatus } from './types'
+import type { Preset, PresetGroup, AppStatus, SessionProfile } from './types'
 import { PresetPanel } from './components/PresetPanel'
 import { PresetEditor } from './components/PresetEditor'
 import { Hotbar } from './components/Hotbar'
@@ -30,11 +30,15 @@ function MainApp() {
     micMonitoring: false,
     oscConnected: false
   })
+  const [sessions, setSessions] = useState<SessionProfile[]>([])
+  const [sessionMenuOpen, setSessionMenuOpen] = useState(false)
+  const [savingSessionName, setSavingSessionName] = useState<string | null>(null)
   const [editingPreset, setEditingPreset] = useState<Preset | null | undefined>(undefined)
 
   const refreshPresets = useCallback(() => {
     window.persona.presets.getAll().then(setPresets)
     window.persona.groups.getAll().then(setGroups)
+    window.persona.sessions.getAll().then(setSessions)
   }, [])
 
   useEffect(() => {
@@ -77,6 +81,28 @@ function MainApp() {
     refreshPresets()
   }
 
+  const handleSaveSession = async () => {
+    if (!savingSessionName?.trim()) return
+    await window.persona.sessions.save(savingSessionName.trim(), status.activePresetId, selectedGroupId)
+    setSavingSessionName(null)
+    setSessionMenuOpen(false)
+    refreshPresets()
+  }
+
+  const handleLoadSession = async (id: string) => {
+    const session = await window.persona.sessions.load(id)
+    if (session?.selectedGroupId !== undefined) {
+      setSelectedGroupId(session.selectedGroupId)
+    }
+    setSessionMenuOpen(false)
+    refreshPresets()
+  }
+
+  const handleDeleteSession = async (id: string) => {
+    await window.persona.sessions.delete(id)
+    refreshPresets()
+  }
+
   const handleToggleMini = () => {
     window.persona.miniPanel.toggle()
   }
@@ -90,6 +116,60 @@ function MainApp() {
           </h1>
           <div className="flex items-center gap-3">
             <CarlaControls status={status} />
+            <div className="relative">
+              <button
+                onClick={() => setSessionMenuOpen(!sessionMenuOpen)}
+                title="Session profiles"
+                className="px-2 py-0.5 rounded text-[10px] bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600"
+              >
+                Sessions
+              </button>
+              {sessionMenuOpen && (
+                <div className="absolute right-0 top-full mt-1 z-50 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1 min-w-[180px] text-xs">
+                  {sessions.map(s => (
+                    <div key={s.id} className="flex items-center group">
+                      <button
+                        onClick={() => handleLoadSession(s.id)}
+                        className="flex-1 text-left px-3 py-1.5 text-zinc-300 hover:bg-zinc-700 truncate"
+                      >
+                        {s.name}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSession(s.id)}
+                        className="px-2 py-1.5 text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100"
+                        title="Delete session"
+                      >
+                        x
+                      </button>
+                    </div>
+                  ))}
+                  {sessions.length > 0 && <div className="border-t border-zinc-700 my-1" />}
+                  {savingSessionName !== null ? (
+                    <div className="px-2 py-1">
+                      <input
+                        autoFocus
+                        placeholder="Session name..."
+                        value={savingSessionName}
+                        onChange={(e) => setSavingSessionName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveSession()
+                          if (e.key === 'Escape') setSavingSessionName(null)
+                        }}
+                        onBlur={handleSaveSession}
+                        className="w-full bg-zinc-900 border border-zinc-600 rounded px-2 py-1 text-xs text-white outline-none"
+                      />
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setSavingSessionName('')}
+                      className="w-full text-left px-3 py-1.5 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+                    >
+                      Save Current...
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
             <button
               onClick={handleToggleMini}
               title="Toggle mini panel"

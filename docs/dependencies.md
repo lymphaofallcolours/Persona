@@ -1,69 +1,96 @@
 # Dependencies
 
 <!-- Claude: Update this file whenever a dependency is added, replaced, or removed. -->
-<!-- The goal is to capture WHY each dependency exists, not just what it does. -->
 
 ## Format
 
 For each dependency, document:
 - **What it does** (one line)
 - **Why it was chosen** over alternatives
-- **What it replaced** (if applicable)
 - **Removal risk** — how coupled is the codebase to this dependency?
 
 ---
 
-## Python Standard Library
+## Runtime Dependencies
 
-### tkinter
+### uuid
 
-**Purpose:** GUI framework — button panel for preset switching.
-**Chosen over:** PyQt/PySide (heavy, licensing), GTK (requires gobject introspection), web UI (over-engineered for 4 buttons).
-**Removal risk:** High — entire GUI depends on it. Will be replaced during TS migration.
-**Added:** 2026-03-04
-
-### subprocess
-
-**Purpose:** Runs `pw-link` commands to create/destroy PipeWire audio links.
-**Chosen over:** dbus bindings (complex, fragile), native PipeWire bindings (no Python package), shell scripts (less control).
-**Removal risk:** High — sole interface to PipeWire. Will be replaced by `node:child_process` or similar.
-**Added:** 2026-03-04
-
-### threading
-
-**Purpose:** Parallel execution of `pw-link` calls for fast preset switching.
-**Chosen over:** asyncio (all operations are subprocess calls with short timeouts, threading is simpler), multiprocessing (overkill for I/O-bound work).
-**Removal risk:** Medium — used in `_batch_pw_commands`. Could be replaced with asyncio or Promise.all in TS.
-**Added:** 2026-03-04
-
----
-
-## System Dependencies
-
-### PipeWire 1.0.7
-
-**Purpose:** Audio server providing JACK compatibility and modern audio routing.
-**Chosen over:** PulseAudio (no JACK compatibility for Carla), raw JACK (less desktop integration), PipeWire 0.3.x (too old for some features).
-**What it replaced:** PulseAudio (disabled via systemctl).
-**Removal risk:** High — entire project depends on PipeWire for audio routing.
-**Added:** 2026-03-04
-
-### Carla 2.5.10 (Flatpak)
-
-**Purpose:** LV2/LADSPA plugin host — keeps audio effects loaded and provides GUIs for tweaking.
-**Chosen over:** Hosting plugins directly in Persona (complex, fragile), JACK Rack (unmaintained), Easy Effects (different purpose).
-**Removal risk:** Medium — Normal/Off presets work without it, but all effects presets require it.
-**Added:** 2026-03-04
-
-### Calf Studio Gear (calf-plugins)
-
-**Purpose:** LV2 plugin suite providing Compressor, EQ, Ring Modulator, Flanger, Reverb.
-**Chosen over:** SWH LADSPA plugins (less GUI support), LSP plugins (installed but not used — Calf has more character effects).
-**Removal risk:** High — all voice presets reference Calf plugin names. Changing plugins requires updating PRESETS dict.
-**Added:** 2026-03-04
+**Purpose:** Generate UUIDs for preset IDs.
+**Chosen over:** `crypto.randomUUID()` (Node 19+ only, Electron may not always have it), nanoid (less standard).
+**Removal risk:** Low — used only in `presets.ts`. Easy to swap.
 
 ---
 
 ## Dev Dependencies
 
-_None currently. Git hooks use bash only._
+### electron
+
+**Purpose:** Desktop app runtime — provides Node.js main process + Chromium renderer.
+**Chosen over:** Tauri (Rust backend adds friction), web-only (no native window features).
+**Removal risk:** Very high — entire app architecture depends on Electron IPC model.
+
+### electron-vite
+
+**Purpose:** Build tool that handles both main process (Node) and renderer (Chromium) bundling.
+**Chosen over:** Manual Vite + tsc setup (more config), electron-forge (heavier, more opinionated).
+**Removal risk:** Medium — config-only, could swap to plain Vite if needed.
+
+### electron-builder
+
+**Purpose:** Packages the app into .AppImage and .deb for Linux distribution.
+**Chosen over:** electron-forge (electron-builder has broader Linux support), manual packaging.
+**Removal risk:** Low — packaging only, not used at dev time.
+
+### react / react-dom
+
+**Purpose:** UI framework for the renderer process.
+**Chosen over:** Svelte (smaller ecosystem for drag-and-drop, color pickers), Vue, vanilla TS (too much manual work for reactive UI).
+**Removal risk:** Very high — all components are React.
+
+### tailwindcss / @tailwindcss/vite
+
+**Purpose:** Utility-first CSS framework for styling.
+**Chosen over:** CSS Modules (more verbose), shadcn/ui (added later if needed), styled-components (runtime overhead).
+**Removal risk:** High — all components use Tailwind classes. Migration would require rewriting all styles.
+
+### @vitejs/plugin-react
+
+**Purpose:** Vite plugin for React JSX transform and Fast Refresh in development.
+**Removal risk:** Low — build tooling only.
+
+### typescript
+
+**Purpose:** Type safety across main and renderer processes.
+**Removal risk:** High — entire codebase is TypeScript.
+
+### vite
+
+**Purpose:** Fast bundler for the renderer process (React/Tailwind).
+**Removal risk:** Medium — used via electron-vite, could be swapped.
+
+### autoprefixer
+
+**Purpose:** PostCSS plugin for CSS vendor prefixes (used by Tailwind).
+**Removal risk:** Low — build tooling only.
+
+---
+
+## System Dependencies
+
+### PipeWire
+
+**Purpose:** Audio server providing JACK compatibility and modern audio routing.
+**Chosen over:** PulseAudio (no JACK compatibility for Carla), raw JACK (less desktop integration).
+**Removal risk:** Very high — entire project depends on PipeWire for audio routing.
+
+### Carla (Flatpak or native)
+
+**Purpose:** LV2/LADSPA plugin host — keeps audio effects loaded and provides GUIs for tweaking.
+**Chosen over:** Hosting plugins directly (complex), JACK Rack (unmaintained).
+**Removal risk:** Medium — Normal/Off presets work without it, but all effects presets require it.
+
+### Calf Studio Gear (calf-plugins)
+
+**Purpose:** LV2 plugin suite providing Compressor, EQ, Ring Modulator, Flanger, Reverb.
+**Chosen over:** SWH LADSPA plugins (less GUI support), LSP plugins (less character effects).
+**Removal risk:** Factory presets reference Calf plugin names. User presets can use any plugins.

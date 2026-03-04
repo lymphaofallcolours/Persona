@@ -4,19 +4,17 @@
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                      PipeWire 1.0.7                     │
-│                   (audio server layer)                  │
-│                                                         │
+│                      PipeWire                            │
+│                   (audio server)                         │
+│                                                          │
 │  ┌──────────┐    ┌──────────────────┐    ┌───────────┐  │
-│  │ Soundbase│    │     Carla        │    │  Laptop   │  │
-│  │ N32 Mic  │───►│  (plugin host)   │───►│ Headphone │  │
-│  │  (USB)   │    │                  │    │   Jack    │  │
+│  │   Any    │    │     Carla        │    │   Any     │  │
+│  │   Mic    │───►│  (plugin host)   │───►│  Output   │  │
+│  │  Input   │    │                  │    │  Device   │  │
 │  └──────────┘    │  ┌────────────┐  │    └───────────┘  │
-│                  │  │ Compressor │  │                    │
-│                  │  │ EQ 8-Band  │  │                    │
-│                  │  │ Ring Mod   │  │                    │
-│                  │  │ Flanger    │  │                    │
-│                  │  │ Reverb     │  │                    │
+│                  │  │ Plugin 1   │  │                    │
+│                  │  │ Plugin 2   │  │                    │
+│                  │  │ ...        │  │                    │
 │                  │  └────────────┘  │                    │
 │                  └──────────────────┘                    │
 └─────────────────────────────────────────────────────────┘
@@ -24,9 +22,9 @@
         │ pw-link commands
         │
 ┌───────┴──────┐
-│  Persona   │  ◄── Python/Tk GUI
-│  (switcher)  │      Always-on-top window
-└──────────────┘      with preset buttons
+│   Persona    │  ◄── Electron desktop app
+│  (switcher)  │      React + Tailwind UI
+└──────────────┘      System tray + mini panel
 ```
 
 ## Component Responsibilities
@@ -37,39 +35,48 @@
 - Provides PulseAudio compatibility for desktop audio
 - Manages audio links (connections between ports)
 
-### Carla (Flatpak application)
+### Carla (Flatpak or native)
 - Hosts LV2 and LADSPA audio plugins
 - Exposes each plugin as a JACK client in PipeWire
 - Provides visual GUIs for tweaking plugin parameters
 - Saves/loads plugin states via `.carxp` project files
-- Must be running for any effects-based preset to work
+- Managed by Persona (auto-start, crash detection, health monitoring)
 
-### persona.py (this project)
-- Small always-on-top GUI with one button per voice preset
-- Switches voices by rewiring PipeWire links (via `pw-link` CLI)
-- Tracks active links to minimize disconnect overhead
-- Runs all pw-link commands in parallel threads for speed
+### Persona (this project)
+- **Electron main process**: PipeWire service, Carla lifecycle, preset storage, device discovery
+- **React renderer**: Preset grid with CRUD, device dropdowns, Carla controls, status bar, toasts
+- **System tray**: Preset switching, show/hide window, quit
+- **Mini panel**: Detachable always-on-top compact preset view
 - No audio processing — purely a routing controller
 
-### mic-monitor-toggle (hotkey script)
-- Separate script at `~/.local/bin/mic-monitor-toggle`
-- Toggles mic monitoring on/off via hotkey
-- Auto-detects whether Carla is running and routes accordingly
-- Carla running: wires full plugin chain
-- Carla not running: wires mic direct to headphones
+## Electron Process Model
+
+```
+Main Process (Node.js)              Renderer Process (Chromium)
+├── PipeWireService (pw-link CLI)   ├── React App
+├── CarlaService (spawn/health)     │   ├── PresetPanel (CRUD grid)
+├── DeviceService (discovery)       │   ├── PresetEditor (drag-drop)
+├── PresetStore (JSON persistence)  │   ├── DeviceSelector (dropdowns)
+├── TrayManager                     │   ├── CarlaControls
+└── MiniPanel window                │   ├── StatusBar
+                                    │   └── ToastContainer
+                                    └── IPC bridge (preload)
+```
+
+Communication: Electron IPC via contextBridge. Renderer never calls system APIs directly.
 
 ## Data Flow
 
 ### Preset with plugins (e.g., "Techpriest")
 ```
-Mic:capture_FL ──► Calf Compressor:In L ──► Calf EQ:In L ──► Calf Ring Mod:In L ──► Calf Flanger:In L ──► Calf Reverb:In L ──► Headphones:playback_FL
-Mic:capture_FR ──► Calf Compressor:In R ──► Calf EQ:In R ──► Calf Ring Mod:In R ──► Calf Flanger:In R ──► Calf Reverb:In R ──► Headphones:playback_FR
+Mic:capture_FL ──► Plugin1:In L ──► Plugin2:In L ──► ... ──► Output:playback_FL
+Mic:capture_FR ──► Plugin1:In R ──► Plugin2:In R ──► ... ──► Output:playback_FR
 ```
 
 ### Normal (no effects)
 ```
-Mic:capture_FL ──► Headphones:playback_FL
-Mic:capture_FR ──► Headphones:playback_FR
+Mic:capture_FL ──► Output:playback_FL
+Mic:capture_FR ──► Output:playback_FR
 ```
 
 ### Off
@@ -77,8 +84,9 @@ All links disconnected. No audio monitoring.
 
 ## Preset Switching Mechanism
 
-1. User clicks a button in Persona
-2. A background thread is spawned (keeps UI responsive)
-3. All currently active links are disconnected in parallel
-4. New links for the selected preset are created in parallel
-5. UI updates to reflect the active preset
+1. User clicks a preset button (main window, mini panel, or tray)
+2. Current active links are disconnected in parallel (Promise.allSettled)
+3. If preset has plugins and Carla isn't running, auto-launch Carla and wait for plugins
+4. New links are built based on preset's plugin chain
+5. Links are created in parallel
+6. Status broadcast to all windows and tray

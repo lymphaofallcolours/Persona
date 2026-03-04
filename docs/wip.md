@@ -1,50 +1,44 @@
 # Work In Progress
 
 <!-- Claude: Read this file at session start. Update it at session end. -->
-<!-- This is the primary cross-session memory bridge. Keep entries concise. -->
 
 ## Current Session
 
 **Date:** 2026-03-04
-**Goal:** Set up professional documentation system and auto-versioning
+**Goal:** Full TypeScript migration — Electron + React + Tailwind
 
 ### Completed This Session
 
-- Renamed `doc/` → `docs/` (6 existing docs preserved)
-- Rewrote `CLAUDE.md` from template, customized for Persona
-- Created `.gitignore` (Python, Node, IDE, OS, CLAUDE.local.md)
-- Created `docs/code-architecture.md` — code-level layer map with current Python + planned TS structure
-- Created `docs/code-conventions.md` — Python conventions now, TS conventions for migration
-- Created `docs/decisions-log.md` — seeded with 4 initial ADRs
-- Created `docs/dependencies.md` — full inventory of current deps with justifications
-- Created `docs/testing.md` — current state (no tests) + planned pytest/vitest approach
-- Created `docs/wip.md` — this file
-- Created `docs/changelog.md` — stub for auto-maintained changelog
-- Created `VERSION` file (0.1.0)
-- Created `scripts/hooks/commit-msg` — conventional commit enforcer
-- Created `scripts/hooks/post-commit` — auto-version bump + changelog
-- Created `scripts/install-hooks.sh` — hook installer for fresh clones
-- Created `.claude/rules/persona.py.md` — scoped rules for main Python file
-- Cleaned up git staging (removed stale `vox-panel.py`, staged `persona.py`)
+- Phase 1: Electron scaffold + core preset switching via pw-link
+- Phase 2: Device discovery with polling, device dropdowns, hot-plug detection
+- Phase 3: Preset CRUD (create, edit, duplicate, delete, drag-and-drop reorder)
+- Phase 4: Carla lifecycle (auto-start, crash detection, health polling, toast alerts)
+- Phase 5: System tray (preset menu, close-to-tray) + detachable mini panel
+- Phase 6: Polish — electron-builder config, updated architecture docs
+- Fixed post-commit hook infinite recursion bug
+- Created GitHub repo (lymphaofallcolours/Persona), pushed all commits
+- Updated CLAUDE.md to require commits after each logical unit of work
 
 ### In Progress
 
-- (nothing)
-
-### Blocked / Needs Attention
-
-- No remote configured — repo needs a GitHub remote for pushing
-- Renamed branch from `master` to `main` (local only)
+- Documentation updates (dependencies.md, decisions-log.md need TS migration entries)
+- `persona.py` still in repo — to be removed once migration is validated
 
 ### Next Steps
 
-1. Make initial commit with full documentation system
-2. Create GitHub remote and push
-3. Begin TypeScript migration planning
+1. Test the app on actual hardware (run `npm run dev`)
+2. Remove `persona.py` (legacy Python version)
+3. Update `docs/adding-voices.md` for new preset editor workflow
+4. Update `docs/dependencies.md` with all npm dependencies
+5. Append migration ADR to `docs/decisions-log.md`
+6. v2 features: `.carxp` file association per preset, Carla project loading
+7. v3 features: Carla OSC integration for plugin parameter control
 
 ---
 
 ## Previous Sessions
 
-<!-- Move the "Current Session" block here when starting a new session. -->
-<!-- Keep the last 5-10 sessions. Archive older entries to docs/session-archive.md if needed. -->
+### 2026-03-04 — Documentation system setup
+- Renamed `doc/` → `docs/`, created 13 docs files
+- Created CLAUDE.md, VERSION, git hooks, .claude/rules/persona.py.md
+- Created GitHub remote, pushed initial commit

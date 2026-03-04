@@ -16,6 +16,30 @@ Each entry captures a non-obvious technical decision. Record a decision when:
 
 <!-- Entries below — newest first -->
 
+## 2026-03-04 — Full TypeScript migration with Electron + React + Tailwind
+
+**Status:** Accepted
+**Context:** Python/tkinter app needed major feature expansion (dynamic devices, preset CRUD, Carla lifecycle, system tray). Python/tkinter was insufficient for the desired UX.
+**Decision:** Complete rewrite as Electron desktop app. React for UI, Tailwind CSS for styling, electron-vite for build tooling. Main process handles all system calls (pw-link, Carla spawn, JSON file I/O). Renderer communicates via typed IPC.
+**Alternatives rejected:** (1) Tauri — lighter but Rust backend adds friction for system calls. (2) Web app (localhost) — no native window controls (always-on-top, tray). (3) Extending Python/tkinter — would still need to rewrite for the desired feature set.
+**Consequences:** Node.js is now a build dependency. Package size increases (~150MB for Electron). Gains: proper component architecture, typed IPC, system tray, always-on-top mini panel, hot module reload for development.
+
+## 2026-03-04 — JSON config file for preset persistence
+
+**Status:** Accepted
+**Context:** Presets were hardcoded in Python source. Need user-editable persistence for preset CRUD.
+**Decision:** JSON file at `~/.config/persona/presets.json`. First run copies factory defaults from shipped `presets/factory.json`.
+**Alternatives rejected:** (1) SQLite — overkill for a flat preset list. (2) electron-store — adds dependency for something JSON + fs handles fine.
+**Consequences:** Human-editable config. Versioned schema (`version: 1`). Factory presets protected from deletion.
+
+## 2026-03-04 — Phased Carla integration (routing → project files → OSC)
+
+**Status:** Accepted
+**Context:** User wants full plugin management from Persona. Options range from simple routing to deep Carla API integration.
+**Decision:** Phase approach: v1 = routing + Carla lifecycle (spawn, health, crash). v2 = `.carxp` project file association per preset. v3 = Carla OSC API for real-time plugin control.
+**Alternatives rejected:** Implementing full OSC integration in v1 — too complex, blocks shipping a working app.
+**Consequences:** v1 delivers immediate value. Each phase is independently useful. Carla's GUI still needed for parameter tweaking in v1.
+
 ## 2026-03-04 — Dual architecture docs (system vs code)
 
 **Status:** Accepted

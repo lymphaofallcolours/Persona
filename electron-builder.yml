@@ -1,0 +1,18 @@
+appId: com.persona.app
+productName: Persona
+directories:
+  buildResources: resources
+  output: dist
+files:
+  - out/**/*
+  - presets/**/*
+  - "!node_modules/**/*"
+extraResources:
+  - from: presets
+    to: presets
+linux:
+  target:
+    - AppImage
+    - deb
+  category: AudioVideo
+  icon: resources/icons

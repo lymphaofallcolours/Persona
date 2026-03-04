@@ -8,9 +8,8 @@
 Persona — real-time voice preset switcher for tabletop RPG sessions (Warhammer 40K).
 Rewires PipeWire audio links to route mic through Carla-hosted LV2/LADSPA plugin chains.
 
-**Stack:** Python 3 · tkinter · PipeWire (`pw-link` CLI) · Carla (Flatpak)
-**Runtime:** Python ≥3.10 | **OS:** Linux (Zorin OS / Ubuntu 22.04)
-**Planned migration:** TypeScript (see `docs/decisions-log.md`)
+**Stack:** Electron · React · TypeScript · Tailwind CSS · PipeWire (`pw-link` CLI) · Carla
+**Runtime:** Node.js ≥18 | **OS:** Linux (Zorin OS / Ubuntu 22.04+)
 
 ## Architecture
 
@@ -22,16 +21,16 @@ Mic (USB) ──► [Carla plugins in series] ──► Laptop headphone jack
 ```
 
 1. **PipeWire** — audio server, moves audio between devices
-2. **Carla** — plugin host (Flatpak), keeps LV2/LADSPA effects loaded
-3. **persona.py** — switching GUI, rewires PipeWire links, no plugin hosting
+2. **Carla** — plugin host, keeps LV2/LADSPA effects loaded (managed by Persona)
+3. **Persona** — Electron app: switching GUI + Carla lifecycle + device discovery
 
 ### Hard Rules
 
 - Persona MUST NOT host or process audio — purely a routing controller.
 - All PipeWire interaction via `pw-link` CLI only. No dbus, no native bindings.
 - Mic and output MUST be on separate physical devices (feedback prevention).
-- No external Python packages — stdlib only (`tkinter`, `subprocess`, `threading`).
-- Plugin parameter tweaking happens in Carla GUIs, never in Persona.
+- All system calls (pw-link, Carla spawn, file I/O) in main process only. Renderer uses IPC.
+- Plugin parameter tweaking happens in Carla GUIs, never in Persona (v1).
 
 > Full component diagram and data flows → `docs/architecture.md`
 > Code-level layer map (TS migration) → `docs/code-architecture.md`
@@ -39,20 +38,18 @@ Mic (USB) ──► [Carla plugins in series] ──► Laptop headphone jack
 ## Key Commands
 
 ```bash
-python3 persona.py                        # Run the panel
+npm run dev                               # Run in development mode
+npm run build                             # Build for production
+npm run package                           # Package as .AppImage / .deb
 pw-link -l                                # List current audio links
 pw-link -o | grep Calf                    # Check if Carla plugins are visible
-flatpak run studio.kx.carla               # Launch Carla
 bash scripts/install-hooks.sh             # Install git hooks after cloning
 ```
 
 ## Code Conventions
 
-**Current (Python):** PEP 8, `snake_case` functions/variables, `UPPER_SNAKE_CASE` constants,
-module-level constants at top, type hints encouraged, docstrings on public functions.
-
-**After TS migration:** See `docs/code-conventions.md` for full patterns (Result pattern,
-Zod validation, CQS, import order, anti-patterns).
+TypeScript strict mode. `camelCase` functions/variables, `UPPER_SNAKE_CASE` constants.
+See `docs/code-conventions.md` for full patterns.
 
 ## Testing
 
@@ -61,9 +58,10 @@ See `docs/testing.md` for planned test strategy (pytest → vitest after migrati
 
 ## Error Handling
 
-- `subprocess.run` with `capture_output=True, timeout=2` — silent failure by design.
+- `child_process.execFile` with `timeout: 2000` — pw-link calls fail fast.
 - Graceful degradation: Normal/Off presets work without Carla running.
-- GUI updates via `.after(0, callback)` to stay on main thread.
+- Toast notifications for errors (device disconnect, Carla crash, link failure).
+- Status bar shows persistent connection state.
 
 ## Git Workflow
 
@@ -77,7 +75,7 @@ See `docs/testing.md` for planned test strategy (pytest → vitest after migrati
 
 - Soundbase N32 is both mic and speaker — NEVER route output to it while using as mic (feedback loop).
 - Carla Flatpak cannot see host plugins without explicit env overrides (`LADSPA_PATH`, `LV2_PATH`).
-- Plugin names in `PRESETS` must exactly match PipeWire client names (check with `pw-link -o`).
+- Plugin names in presets must exactly match PipeWire client names (check with `pw-link -o`).
 - PipeWire services must be restarted after version upgrades (`systemctl --user daemon-reload`).
 
 ## Automated Documentation & Memory Maintenance

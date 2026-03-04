@@ -12,7 +12,7 @@ vi.mock('fs', () => ({
 }))
 
 import { execSync, spawn } from 'child_process'
-import { isRunning, launch, stop, setHeadless } from './carla'
+import { isRunning, launch, stop } from './carla'
 
 const mockExecSync = vi.mocked(execSync)
 const mockSpawn = vi.mocked(spawn)
@@ -56,7 +56,7 @@ describe('launch', () => {
     } as any
   }
 
-  it('tries flatpak first (headless by default)', () => {
+  it('tries flatpak first (always with GUI)', () => {
     const proc = makeFakeProcess()
     mockSpawn.mockReturnValue(proc)
 
@@ -64,23 +64,9 @@ describe('launch', () => {
     expect(result).toBe(true)
     expect(mockSpawn).toHaveBeenCalledWith(
       'flatpak',
-      ['run', 'studio.kx.carla', '--no-gui'],
-      expect.objectContaining({ detached: true })
-    )
-  })
-
-  it('launches with GUI when headless is off', () => {
-    const proc = makeFakeProcess()
-    mockSpawn.mockReturnValue(proc)
-    setHeadless(false)
-
-    launch()
-    expect(mockSpawn).toHaveBeenCalledWith(
-      'flatpak',
       ['run', 'studio.kx.carla'],
       expect.objectContaining({ detached: true })
     )
-    setHeadless(true) // reset
   })
 
   it('passes project file when provided', () => {
@@ -90,7 +76,7 @@ describe('launch', () => {
     launch('/path/to/project.carxp')
     expect(mockSpawn).toHaveBeenCalledWith(
       'flatpak',
-      ['run', 'studio.kx.carla', '--no-gui', '/path/to/project.carxp'],
+      ['run', 'studio.kx.carla', '/path/to/project.carxp'],
       expect.any(Object)
     )
   })

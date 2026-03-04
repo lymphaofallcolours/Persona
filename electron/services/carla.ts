@@ -5,30 +5,17 @@ import { CARLA_OSC_PORT } from './carlaOsc'
 type StatusCallback = (running: boolean, plugins: string[]) => void
 type CrashCallback = () => void
 
-// Carla launch commands with --no-gui variant (tried in order)
-const CARLA_COMMANDS_GUI = [
+// Carla launch commands (tried in order)
+// Note: --no-gui crashes Flatpak Carla, so we always launch with GUI.
+const CARLA_COMMANDS = [
   { cmd: 'flatpak', args: ['run', 'studio.kx.carla'] },
   { cmd: 'carla', args: [] }
-]
-
-const CARLA_COMMANDS_HEADLESS = [
-  { cmd: 'flatpak', args: ['run', 'studio.kx.carla', '--no-gui'] },
-  { cmd: 'carla', args: ['--no-gui'] }
 ]
 
 let carlaProcess: ChildProcess | null = null
 let healthInterval: ReturnType<typeof setInterval> | null = null
 let onStatusChange: StatusCallback | null = null
 let onCrash: CrashCallback | null = null
-let headlessMode = true // Default to headless
-
-export function setHeadless(headless: boolean): void {
-  headlessMode = headless
-}
-
-export function getHeadless(): boolean {
-  return headlessMode
-}
 
 /**
  * Check if Carla is already running (any instance, not just ours).
@@ -44,16 +31,14 @@ export function isRunning(): boolean {
 
 /**
  * Launch Carla, optionally with a .carxp project file.
- * When headlessMode is true, launches with --no-gui.
+ * Always launches with GUI — Flatpak Carla doesn't support --no-gui.
  */
 export function launch(projectFile?: string): boolean {
   if (carlaProcess && !carlaProcess.killed) {
     return true // Already running via us
   }
 
-  const commands = headlessMode ? CARLA_COMMANDS_HEADLESS : CARLA_COMMANDS_GUI
-
-  for (const { cmd, args } of commands) {
+  for (const { cmd, args } of CARLA_COMMANDS) {
     try {
       const fullArgs = [...args]
       if (projectFile && existsSync(projectFile)) {

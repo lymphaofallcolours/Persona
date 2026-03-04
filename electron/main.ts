@@ -128,24 +128,28 @@ app.whenReady().then(() => {
     })
   }
 
-  // Auto-launch Carla on startup (headless by default)
-  if (!carla.isRunning()) {
+  // Auto-launch Carla on startup
+  const autoLaunchCarla = async () => {
+    if (carla.isRunning()) return
+
+    // Snapshot current PipeWire nodes so we can detect Carla plugins by diff
+    await devicesService.snapshotBaseline()
+
     const launched = carla.launch()
-    if (launched) {
-      // Wait for Carla to be ready, then connect OSC
-      const waitForCarla = async () => {
-        for (let i = 0; i < 20; i++) {
-          await new Promise(r => setTimeout(r, 500))
-          const plugins = await devicesService.getCarlaPlugins()
-          if (plugins.length > 0 || carla.isRunning()) {
-            try { carlaOsc.connect() } catch { /* OSC optional */ }
-            break
-          }
-        }
+    if (!launched) return
+
+    // Wait for Carla plugins to appear in PipeWire, then connect OSC
+    for (let i = 0; i < 30; i++) {
+      await new Promise(r => setTimeout(r, 500))
+      const plugins = await devicesService.getCarlaPlugins()
+      if (plugins.length > 0) {
+        try { carlaOsc.connect() } catch { /* OSC optional */ }
+        return
       }
-      waitForCarla()
     }
+    // Carla started but no plugins detected — OSC not connected
   }
+  autoLaunchCarla()
 
   // Listen for mini panel toggle from renderer
   ipcMain.handle('mini-panel:toggle', () => {

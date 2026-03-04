@@ -44,8 +44,6 @@ export interface PersonaAPI {
     launch(projectFile?: string): Promise<boolean>
     stop(): Promise<void>
     isRunning(): Promise<boolean>
-    setMinimized(minimized: boolean): Promise<void>
-    getMinimized(): Promise<boolean>
   }
   status: {
     get(): Promise<AppStatus>
@@ -119,9 +117,7 @@ const api: PersonaAPI = {
   carla: {
     launch: (projectFile?) => ipcRenderer.invoke(IPC.CARLA_LAUNCH, projectFile),
     stop: () => ipcRenderer.invoke(IPC.CARLA_STOP),
-    isRunning: () => ipcRenderer.invoke(IPC.CARLA_IS_RUNNING),
-    setMinimized: (minimized) => ipcRenderer.invoke(IPC.CARLA_SET_MINIMIZED, minimized),
-    getMinimized: () => ipcRenderer.invoke(IPC.CARLA_GET_MINIMIZED)
+    isRunning: () => ipcRenderer.invoke(IPC.CARLA_IS_RUNNING)
   },
   status: {
     get: () => ipcRenderer.invoke(IPC.STATUS_GET),

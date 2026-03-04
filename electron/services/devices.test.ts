@@ -6,7 +6,7 @@ vi.mock('child_process', () => ({
 }))
 
 import { execFile } from 'child_process'
-import { getInputDevices, getOutputDevices, getCarlaPlugins, getDefaultSource, getDefaultSink } from './devices'
+import { getInputDevices, getOutputDevices, getCarlaPlugins, getDefaultSource, getDefaultSink, snapshotBaseline } from './devices'
 
 const mockExecFile = vi.mocked(execFile)
 
@@ -84,25 +84,55 @@ describe('getOutputDevices', () => {
 })
 
 describe('getCarlaPlugins', () => {
-  it('returns non-ALSA, non-pipewire output ports', async () => {
+  it('returns only nodes that appeared after baseline snapshot', async () => {
+    // Step 1: snapshot baseline (before Carla launches)
     mockExecResult(
       'alsa_input.mic:capture_FL\n' +
       'alsa_output.headphones:monitor_FL\n' +
-      'Calf Compressor:Out L\n' +
-      'Calf Reverb:Out L\n' +
+      'firefox:output_FL\n' +
       'pipewire-pulse:capture_1\n'
+    )
+    await snapshotBaseline()
+
+    // Step 2: after Carla launches, new plugins appear
+    mockExecResult(
+      'alsa_input.mic:capture_FL\n' +
+      'alsa_output.headphones:monitor_FL\n' +
+      'firefox:output_FL\n' +
+      'pipewire-pulse:capture_1\n' +
+      'Calf Compressor:Out L\n' +
+      'Calf Reverb:Out L\n'
     )
 
     const plugins = await getCarlaPlugins()
     expect(plugins).toEqual(['Calf Compressor', 'Calf Reverb'])
   })
 
-  it('returns empty when only ALSA devices present', async () => {
+  it('excludes Firefox and other pre-existing apps', async () => {
+    // Firefox was running before Carla
+    mockExecResult('firefox:output_FL\nfirefox:output_FR\n')
+    await snapshotBaseline()
+
+    // Still just Firefox — no Carla plugins
+    mockExecResult('firefox:output_FL\nfirefox:output_FR\n')
+    const plugins = await getCarlaPlugins()
+    expect(plugins).toEqual([])
+  })
+
+  it('returns empty when no baseline and no new nodes', async () => {
+    // No baseline set, but only system nodes
     mockExecResult(
       'alsa_input.mic:capture_FL\n' +
       'alsa_output.headphones:monitor_FL\n'
     )
+    // Take baseline with these
+    await snapshotBaseline()
 
+    // Same nodes — nothing new
+    mockExecResult(
+      'alsa_input.mic:capture_FL\n' +
+      'alsa_output.headphones:monitor_FL\n'
+    )
     const plugins = await getCarlaPlugins()
     expect(plugins).toEqual([])
   })

@@ -71,35 +71,38 @@ export async function getOutputDevices(): Promise<AudioDevice[]> {
   return all.filter(d => d.name.startsWith('alsa_output.'))
 }
 
-// System PipeWire nodes that are NOT Carla plugins
-const SYSTEM_NODES = new Set([
-  'Midi-Bridge',
-  'Midi Through',
-  'pipewire',
-])
+/**
+ * Baseline PipeWire node names captured BEFORE Carla launches.
+ * getCarlaPlugins() returns only nodes that appeared AFTER the baseline,
+ * which eliminates Firefox, Discord, system nodes, etc.
+ */
+let baselineNodes: Set<string> = new Set()
 
-const SYSTEM_PREFIXES = [
-  'alsa_',
-  'pipewire',
-  'v4l2',
-  'libcamera',
-  'Midi',
-]
+/**
+ * Capture a snapshot of all current PipeWire output nodes.
+ * Call this BEFORE launching Carla so we can diff later.
+ */
+export async function snapshotBaseline(): Promise<void> {
+  try {
+    const output = await exec('pw-link', ['-o'])
+    const all = parsePorts(output, 'output')
+    baselineNodes = new Set(all.map(d => d.name))
+  } catch {
+    baselineNodes = new Set()
+  }
+}
 
 /**
  * Get all Carla plugin clients visible in PipeWire.
- * Filters out system nodes (ALSA devices, MIDI bridges, video capture, etc.)
- * to show only actual audio plugins hosted by Carla.
+ * Uses a diff against the baseline snapshot taken before Carla launched.
+ * Only returns nodes that appeared AFTER Carla started — this filters out
+ * Firefox, Discord, system nodes, and anything else that was already running.
  */
 export async function getCarlaPlugins(): Promise<string[]> {
   const output = await exec('pw-link', ['-o'])
   const all = parsePorts(output, 'output')
   return all
-    .filter(d => {
-      if (SYSTEM_NODES.has(d.name)) return false
-      if (SYSTEM_PREFIXES.some(prefix => d.name.startsWith(prefix))) return false
-      return true
-    })
+    .filter(d => !baselineNodes.has(d.name))
     .map(d => d.name)
 }
 

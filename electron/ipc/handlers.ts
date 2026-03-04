@@ -124,11 +124,14 @@ export async function activatePreset(id: string): Promise<void> {
     }
 
     if (needsStart || needsRestart) {
+      // Snapshot PipeWire nodes before launch so we detect only Carla plugins
+      await devices.snapshotBaseline()
+
       const launched = carla.launch(preset.carxpPath)
       if (launched) {
         sendToast('info', 'Starting Carla...')
         currentCarxpPath = preset.carxpPath
-        for (let i = 0; i < 20; i++) {
+        for (let i = 0; i < 30; i++) {
           await new Promise(r => setTimeout(r, 500))
           const plugins = await devices.getCarlaPlugins()
           if (plugins.length > 0) {
@@ -140,7 +143,7 @@ export async function activatePreset(id: string): Promise<void> {
         if (carlaPlugins.length === 0) {
           sendToast('warning', 'Carla started but no plugins detected yet. The preset may not work correctly.')
         }
-        // Connect OSC after Carla is ready
+        // Connect OSC after Carla is ready (plugins visible)
         try {
           carlaOsc.connect()
         } catch {
@@ -391,13 +394,8 @@ export function registerIpcHandlers(): void {
     return carla.isRunning()
   })
 
-  ipcMain.handle(IPC.CARLA_SET_MINIMIZED, (_event, headless: boolean) => {
-    carla.setHeadless(headless)
-  })
-
-  ipcMain.handle(IPC.CARLA_GET_MINIMIZED, () => {
-    return carla.getHeadless()
-  })
+  // CARLA_SET_MINIMIZED / CARLA_GET_MINIMIZED removed — Flatpak Carla
+  // doesn't support --no-gui. Carla always launches with its GUI window.
 
   // --- Mic Monitor ---
 

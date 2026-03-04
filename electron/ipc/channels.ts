@@ -38,8 +38,6 @@ export const IPC = {
   CARLA_LAUNCH: 'carla:launch',
   CARLA_STOP: 'carla:stop',
   CARLA_IS_RUNNING: 'carla:is-running',
-  CARLA_SET_MINIMIZED: 'carla:set-minimized',
-  CARLA_GET_MINIMIZED: 'carla:get-minimized',
 
   // Mic monitoring
   MIC_MONITOR_TOGGLE: 'mic-monitor:toggle',

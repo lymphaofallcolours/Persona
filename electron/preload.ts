@@ -44,8 +44,8 @@ export interface PersonaAPI {
     launch(projectFile?: string): Promise<boolean>
     stop(): Promise<void>
     isRunning(): Promise<boolean>
-    setMinimized(minimized: boolean): Promise<void>
-    getMinimized(): Promise<boolean>
+    setWindowMode(mode: 'visible' | 'minimized' | 'no-gui'): Promise<void>
+    getWindowMode(): Promise<'visible' | 'minimized' | 'no-gui'>
   }
   status: {
     get(): Promise<AppStatus>
@@ -120,8 +120,8 @@ const api: PersonaAPI = {
     launch: (projectFile?) => ipcRenderer.invoke(IPC.CARLA_LAUNCH, projectFile),
     stop: () => ipcRenderer.invoke(IPC.CARLA_STOP),
     isRunning: () => ipcRenderer.invoke(IPC.CARLA_IS_RUNNING),
-    setMinimized: (minimized) => ipcRenderer.invoke(IPC.CARLA_SET_MINIMIZED, minimized),
-    getMinimized: () => ipcRenderer.invoke(IPC.CARLA_GET_MINIMIZED)
+    setWindowMode: (mode) => ipcRenderer.invoke(IPC.CARLA_SET_WINDOW_MODE, mode),
+    getWindowMode: () => ipcRenderer.invoke(IPC.CARLA_GET_WINDOW_MODE)
   },
   status: {
     get: () => ipcRenderer.invoke(IPC.STATUS_GET),

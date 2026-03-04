@@ -12,15 +12,16 @@ vi.mock('fs', () => ({
 }))
 
 import { execSync, spawn } from 'child_process'
-import { isRunning, launch, stop, setMinimized, getMinimized } from './carla'
+import { isRunning, launch, stop, setWindowMode, getWindowMode } from './carla'
 
 const mockExecSync = vi.mocked(execSync)
 const mockSpawn = vi.mocked(spawn)
 
 beforeEach(() => {
   vi.clearAllMocks()
-  // Reset module state — stop any lingering process reference
+  // Reset module state
   stop()
+  setWindowMode('minimized')
 })
 
 describe('isRunning', () => {
@@ -56,12 +57,38 @@ describe('launch', () => {
     } as any
   }
 
-  it('tries flatpak first (always with GUI, no --no-gui)', () => {
+  it('launches with GUI by default (minimized mode)', () => {
     const proc = makeFakeProcess()
     mockSpawn.mockReturnValue(proc)
 
     const result = launch()
     expect(result).toBe(true)
+    expect(mockSpawn).toHaveBeenCalledWith(
+      'flatpak',
+      ['run', 'studio.kx.carla'],
+      expect.objectContaining({ detached: true })
+    )
+  })
+
+  it('launches with --no-gui in no-gui mode', () => {
+    setWindowMode('no-gui')
+    const proc = makeFakeProcess()
+    mockSpawn.mockReturnValue(proc)
+
+    launch()
+    expect(mockSpawn).toHaveBeenCalledWith(
+      'flatpak',
+      ['run', 'studio.kx.carla', '--no-gui'],
+      expect.objectContaining({ detached: true })
+    )
+  })
+
+  it('launches with GUI in visible mode', () => {
+    setWindowMode('visible')
+    const proc = makeFakeProcess()
+    mockSpawn.mockReturnValue(proc)
+
+    launch()
     expect(mockSpawn).toHaveBeenCalledWith(
       'flatpak',
       ['run', 'studio.kx.carla'],
@@ -85,10 +112,9 @@ describe('launch', () => {
     const proc = makeFakeProcess()
     mockSpawn.mockReturnValue(proc)
 
-    launch() // first launch
-    const result = launch() // second launch
+    launch()
+    const result = launch()
     expect(result).toBe(true)
-    // spawn only called once
     expect(mockSpawn).toHaveBeenCalledTimes(1)
   })
 })
@@ -109,15 +135,27 @@ describe('stop', () => {
   })
 })
 
-describe('minimized mode', () => {
+describe('window mode', () => {
   it('defaults to minimized', () => {
-    expect(getMinimized()).toBe(true)
+    expect(getWindowMode()).toBe('minimized')
   })
 
-  it('can be toggled', () => {
-    setMinimized(false)
-    expect(getMinimized()).toBe(false)
-    setMinimized(true)
-    expect(getMinimized()).toBe(true)
+  it('can be set to visible', () => {
+    setWindowMode('visible')
+    expect(getWindowMode()).toBe('visible')
+  })
+
+  it('can be set to no-gui', () => {
+    setWindowMode('no-gui')
+    expect(getWindowMode()).toBe('no-gui')
+  })
+
+  it('cycles through all modes', () => {
+    setWindowMode('visible')
+    expect(getWindowMode()).toBe('visible')
+    setWindowMode('minimized')
+    expect(getWindowMode()).toBe('minimized')
+    setWindowMode('no-gui')
+    expect(getWindowMode()).toBe('no-gui')
   })
 })

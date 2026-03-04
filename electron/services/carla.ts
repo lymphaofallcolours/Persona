@@ -5,34 +5,56 @@ import { CARLA_OSC_PORT } from './carlaOsc'
 type StatusCallback = (running: boolean, plugins: string[]) => void
 type CrashCallback = () => void
 
+/** Carla window mode: 'visible' shows GUI, 'minimized' minimizes it, 'no-gui' uses --no-gui flag */
+export type CarlaWindowMode = 'visible' | 'minimized' | 'no-gui'
+
 // Carla launch commands (tried in order)
-// Note: --no-gui crashes Flatpak Carla, so we always launch with GUI
-// and use xdotool to minimize the window when minimized mode is on.
 const CARLA_COMMANDS = [
   { cmd: 'flatpak', args: ['run', 'studio.kx.carla'] },
   { cmd: 'carla', args: [] }
+]
+
+const CARLA_COMMANDS_NOGUI = [
+  { cmd: 'flatpak', args: ['run', 'studio.kx.carla', '--no-gui'] },
+  { cmd: 'carla', args: ['--no-gui'] }
 ]
 
 let carlaProcess: ChildProcess | null = null
 let healthInterval: ReturnType<typeof setInterval> | null = null
 let onStatusChange: StatusCallback | null = null
 let onCrash: CrashCallback | null = null
-let minimizedMode = true // Default: minimize Carla window after launch
+let windowMode: CarlaWindowMode = 'minimized'
 
-export function setMinimized(minimized: boolean): void {
-  minimizedMode = minimized
-  // If Carla is running, apply immediately
+export function setWindowMode(mode: CarlaWindowMode): void {
+  windowMode = mode
+  // Apply immediately if Carla is running (only for visible/minimized toggle)
   if (isRunning()) {
-    if (minimized) {
+    if (mode === 'minimized') {
       minimizeCarlaWindow()
-    } else {
+    } else if (mode === 'visible') {
       restoreCarlaWindow()
     }
+    // 'no-gui' can't be applied to a running instance — takes effect on next launch
   }
 }
 
-export function getMinimized(): boolean {
-  return minimizedMode
+export function getWindowMode(): CarlaWindowMode {
+  return windowMode
+}
+
+/**
+ * Refocus Persona's Electron window after Carla steals focus.
+ * Uses xdotool to find and activate the Persona window.
+ */
+function refocusPersona(): void {
+  try {
+    execSync('xdotool search --name "Persona" windowactivate', {
+      timeout: 2000,
+      stdio: 'pipe'
+    })
+  } catch {
+    // Persona window not found — that's fine
+  }
 }
 
 /**
@@ -40,19 +62,18 @@ export function getMinimized(): boolean {
  * Retries a few times since the window may take a moment to appear after launch.
  */
 export function minimizeCarlaWindow(retries = 5): void {
-  const attempt = () => {
-    try {
-      execSync('xdotool search --name "Carla" windowminimize', {
-        timeout: 2000,
-        stdio: 'pipe'
-      })
-    } catch {
-      if (retries > 0) {
-        setTimeout(() => minimizeCarlaWindow(retries - 1), 1000)
-      }
+  try {
+    execSync('xdotool search --name "Carla" windowminimize', {
+      timeout: 2000,
+      stdio: 'pipe'
+    })
+    // After minimizing Carla, refocus Persona
+    refocusPersona()
+  } catch {
+    if (retries > 0) {
+      setTimeout(() => minimizeCarlaWindow(retries - 1), 1000)
     }
   }
-  attempt()
 }
 
 /**
@@ -83,15 +104,18 @@ export function isRunning(): boolean {
 
 /**
  * Launch Carla, optionally with a .carxp project file.
- * Always launches with GUI (--no-gui crashes Flatpak Carla).
- * If minimizedMode is on, the window is minimized after it appears.
+ * - 'visible': launches with GUI, refocuses Persona after
+ * - 'minimized': launches with GUI, minimizes window + refocuses Persona
+ * - 'no-gui': launches with --no-gui flag (may crash on Flatpak Carla)
  */
 export function launch(projectFile?: string): boolean {
   if (carlaProcess && !carlaProcess.killed) {
     return true // Already running via us
   }
 
-  for (const { cmd, args } of CARLA_COMMANDS) {
+  const commands = windowMode === 'no-gui' ? CARLA_COMMANDS_NOGUI : CARLA_COMMANDS
+
+  for (const { cmd, args } of commands) {
     try {
       const fullArgs = [...args]
       if (projectFile && existsSync(projectFile)) {
@@ -118,9 +142,15 @@ export function launch(projectFile?: string): boolean {
 
       carlaProcess.unref()
 
-      // Minimize the window after it appears (if minimized mode is on)
-      if (minimizedMode) {
-        setTimeout(() => minimizeCarlaWindow(8), 2000)
+      // Handle window after launch (GUI modes only)
+      if (windowMode !== 'no-gui') {
+        if (windowMode === 'minimized') {
+          // Wait for window to appear, then minimize + refocus Persona
+          setTimeout(() => minimizeCarlaWindow(10), 2000)
+        } else {
+          // Visible mode: still refocus Persona after a brief delay
+          setTimeout(() => refocusPersona(), 3000)
+        }
       }
 
       return true

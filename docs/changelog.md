@@ -7,6 +7,9 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.10.0] — 2026-03-04
+- feat(carla): three-mode window control (Visible/Minimized/No GUI) with focus-steal prevention (6d2f76b)
+
 ## [0.9.5] — 2026-03-04
 - fix(carla): restore minimize toggle using xdotool instead of --no-gui (17fd849)
 

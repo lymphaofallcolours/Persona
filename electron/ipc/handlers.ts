@@ -394,12 +394,12 @@ export function registerIpcHandlers(): void {
     return carla.isRunning()
   })
 
-  ipcMain.handle(IPC.CARLA_SET_MINIMIZED, (_event, minimized: boolean) => {
-    carla.setMinimized(minimized)
+  ipcMain.handle(IPC.CARLA_SET_WINDOW_MODE, (_event, mode: string) => {
+    carla.setWindowMode(mode as 'visible' | 'minimized' | 'no-gui')
   })
 
-  ipcMain.handle(IPC.CARLA_GET_MINIMIZED, () => {
-    return carla.getMinimized()
+  ipcMain.handle(IPC.CARLA_GET_WINDOW_MODE, () => {
+    return carla.getWindowMode()
   })
 
   // --- Mic Monitor ---

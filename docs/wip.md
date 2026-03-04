@@ -22,8 +22,14 @@
   - MiniPanel updated: hotbar presets shown at top
   - New tests: `Hotbar.test.tsx` (5), groups/hotbar/migration tests in `presets.test.ts` (7)
   - Updated PresetPanel and PresetEditor tests for new props
+- Preset Export/Import:
+  - `PersonaExport` type in `src/types/index.ts`
+  - `exportPresets()` and `importPresets()` in `electron/services/presets.ts`
+  - IPC channels `PRESET_EXPORT` and `PRESET_IMPORT` with file dialog handlers
+  - PresetPanel: Import/Export All toolbar buttons, Export in context menu
+  - 5 new tests (export strips fields, groups included, import new IDs, group remap, invalid data)
 - Previous: Carla OSC integration (v3) — carlaOsc.ts, ParameterPanel, smart switching
-- Total: 97 tests, all passing across 11 test files
+- Total: 102 tests, all passing across 11 test files
 
 ### In Progress
 

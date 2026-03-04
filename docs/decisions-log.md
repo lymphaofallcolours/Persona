@@ -16,6 +16,14 @@ Each entry captures a non-obvious technical decision. Record a decision when:
 
 <!-- Entries below — newest first -->
 
+## 2026-03-04 — .carxp file association via Carla restart
+
+**Status:** Accepted
+**Context:** Users need different Carla plugin parameter configurations per preset. Carla stores settings in `.carxp` project files.
+**Decision:** Each preset can optionally reference a `.carxp` file path. On preset activation, if the `.carxp` path differs from the currently running Carla session, Carla is stopped and restarted with the new project file. File selection uses Electron's native file dialog via IPC.
+**Alternatives rejected:** (1) Carla OSC API to hot-swap parameters — too complex for v2, reserved for v3. (2) Parsing `.carxp` XML in Persona — fragile, couples to Carla internals.
+**Consequences:** Preset switching with different `.carxp` files has a ~2-3 second delay for Carla restart. Trade-off accepted for simplicity. Future OSC integration could eliminate restart overhead.
+
 ## 2026-03-04 — Full TypeScript migration with Electron + React + Tailwind
 
 **Status:** Accepted

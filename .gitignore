@@ -1,9 +1,8 @@
-# Python
+# Python (legacy, keeping until full migration)
 __pycache__/
 *.py[cod]
 *.pyo
 *.egg-info/
-dist/
 build/
 .eggs/
 
@@ -22,9 +21,14 @@ Thumbs.db
 .env
 .env.local
 
-# Node (future TS migration)
+# Node
 node_modules/
 npm-debug.log*
+
+# Electron / Build
+out/
+dist/
+*.asar
 
 # Claude local overrides
 CLAUDE.local.md

@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "selectedInput": "auto",
+  "selectedOutput": "auto",
+  "presets": [
+    {
+      "id": "factory-normal",
+      "name": "Normal",
+      "color": "#4a9eff",
+      "plugins": [],
+      "isFactory": true
+    },
+    {
+      "id": "factory-techpriest",
+      "name": "Techpriest",
+      "color": "#cc3333",
+      "plugins": [
+        "Calf Compressor",
+        "Calf Equalizer 8 Band",
+        "Calf Ring Modulator",
+        "Calf Flanger",
+        "Calf Reverb"
+      ],
+      "isFactory": true
+    },
+    {
+      "id": "factory-clean",
+      "name": "Clean",
+      "color": "#cc8833",
+      "plugins": [
+        "Calf Compressor",
+        "Calf Equalizer 8 Band",
+        "Calf Reverb"
+      ],
+      "isFactory": true
+    },
+    {
+      "id": "factory-off",
+      "name": "Off",
+      "color": "#666666",
+      "plugins": [],
+      "isFactory": true
+    }
+  ]
+}

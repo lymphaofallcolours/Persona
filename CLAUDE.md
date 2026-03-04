@@ -71,6 +71,7 @@ See `docs/testing.md` for planned test strategy (pytest → vitest after migrati
 - Scope when useful: `feat(presets): add Dark voice preset`.
 - Auto-versioning: `commit-msg` hook enforces format, `post-commit` bumps `VERSION`.
 - Feature branches: max 1-2 days. Merge to `main` via squash-merge PR.
+- **Commit after each logical unit of work** — each completed phase, feature, or fix gets its own commit. Do not accumulate large uncommitted changesets across multiple features.
 
 ## Gotchas
 

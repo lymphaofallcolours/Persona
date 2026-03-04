@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Enforce conventional commit format.
+# Valid types: feat, fix, refactor, test, docs, chore, ci, build, perf, style
+
+commit_msg_file="$1"
+commit_msg=$(head -1 "$commit_msg_file")
+
+# Allow merge commits
+if echo "$commit_msg" | grep -qE "^Merge "; then
+    exit 0
+fi
+
+# Conventional commit pattern: type(optional-scope)!: description
+pattern="^(feat|fix|refactor|test|docs|chore|ci|build|perf|style)(\([a-z0-9-]+\))?\!?: .+"
+
+if ! echo "$commit_msg" | grep -qE "$pattern"; then
+    echo ""
+    echo "ERROR: Commit message does not follow Conventional Commits format."
+    echo ""
+    echo "  Expected: <type>(<scope>): <description>"
+    echo "  Example:  feat(presets): add Dark voice preset"
+    echo "  Example:  fix: correct stereo link ordering"
+    echo "  Example:  docs: update architecture diagram"
+    echo ""
+    echo "  Valid types: feat, fix, refactor, test, docs, chore, ci, build, perf, style"
+    echo ""
+    echo "  Your message: $commit_msg"
+    echo ""
+    exit 1
+fi

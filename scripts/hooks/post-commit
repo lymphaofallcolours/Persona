@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# Auto-version bump and changelog update after each commit.
+# Reads conventional commit type to determine bump level:
+#   feat → minor, fix → patch, breaking (! or BREAKING CHANGE) → major
+# Other types (docs, chore, refactor, etc.) do not bump.
+
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+VERSION_FILE="$REPO_ROOT/VERSION"
+CHANGELOG_FILE="$REPO_ROOT/docs/changelog.md"
+
+# Read current version
+if [ ! -f "$VERSION_FILE" ]; then
+    echo "0.1.0" > "$VERSION_FILE"
+fi
+current_version=$(cat "$VERSION_FILE" | tr -d '[:space:]')
+
+# Parse semver
+IFS='.' read -r major minor patch <<< "$current_version"
+
+# Get commit info
+commit_msg=$(git log -1 --pretty=%s)
+commit_body=$(git log -1 --pretty=%b)
+commit_hash=$(git log -1 --pretty=%h)
+commit_date=$(git log -1 --pretty=%cd --date=short)
+
+# Determine bump type
+bump=""
+if echo "$commit_msg" | grep -qE "^.+\!:" || echo "$commit_body" | grep -q "BREAKING CHANGE"; then
+    bump="major"
+    major=$((major + 1))
+    minor=0
+    patch=0
+elif echo "$commit_msg" | grep -qE "^feat(\(|:)"; then
+    bump="minor"
+    minor=$((minor + 1))
+    patch=0
+elif echo "$commit_msg" | grep -qE "^fix(\(|:)"; then
+    bump="patch"
+    patch=$((patch + 1))
+fi
+
+new_version="${major}.${minor}.${patch}"
+
+if [ -n "$bump" ]; then
+    # Update VERSION file
+    echo "$new_version" > "$VERSION_FILE"
+
+    # Build changelog entry
+    entry="\n## [$new_version] — $commit_date\n- $commit_msg ($commit_hash)"
+
+    # Insert after the marker line
+    if grep -q "<!-- Entries below" "$CHANGELOG_FILE" 2>/dev/null; then
+        sed -i "/<!-- Entries below.*-->/a\\$entry" "$CHANGELOG_FILE"
+    else
+        echo -e "$entry" >> "$CHANGELOG_FILE"
+    fi
+
+    # Amend the commit to include version bump (--no-verify prevents hook recursion)
+    git add "$VERSION_FILE" "$CHANGELOG_FILE" 2>/dev/null
+    git commit --amend --no-edit --no-verify 2>/dev/null
+
+    echo "  Version bumped: $current_version → $new_version ($bump)"
+fi

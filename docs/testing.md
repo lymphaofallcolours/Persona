@@ -29,9 +29,12 @@ electron/services/pipewire.test.ts          # Unit test (colocated)
 electron/services/presets.test.ts            # Unit test (colocated)
 electron/services/devices.test.ts            # Unit test (colocated)
 electron/services/carla.test.ts              # Unit test (colocated)
+electron/services/carlaOsc.test.ts           # Unit test (colocated)
 src/components/PresetPanel.test.tsx          # Component test (colocated)
 src/components/PresetEditor.test.tsx         # Component test (colocated)
 src/components/DeviceSelector.test.tsx       # Component test (colocated)
+src/components/StatusBar.test.tsx            # Component test (colocated)
+src/components/ParameterPanel.test.tsx       # Component test (colocated)
 tests/e2e/preset-switching.e2e.test.ts       # E2E test
 tests/e2e/device-selection.e2e.test.ts       # E2E test
 tests/e2e/carla-lifecycle.e2e.test.ts        # E2E test
@@ -72,6 +75,13 @@ for critical user flows.
 - `launch()` — tries Flatpak first, falls back to native
 - Mock `child_process` for all tests
 
+### CarlaOscService (`carlaOsc.test.ts`)
+- `connect()` / `disconnect()` — manage UDP client lifecycle
+- `setParameterValue()` — sends correct OSC address and values
+- `setPluginActive()` — sends 1/0 for active/inactive
+- `setDryWet()` / `setVolume()` — sends correct values
+- Mock `node-osc` Client for all tests
+
 ## Component Tests — What to Test
 
 ### PresetPanel
@@ -91,6 +101,12 @@ for critical user flows.
 ### DeviceSelector
 - Renders "Auto" plus all detected devices
 - Changing selection calls setSelected
+
+### ParameterPanel
+- Hidden when Carla not running
+- Shows Connect/Disconnect OSC buttons
+- Shows parameter sliders when connected
+- Save to Preset button captures snapshot
 
 ## E2E Tests — Critical User Journeys
 
@@ -151,4 +167,4 @@ npm run test:coverage       # Unit + component tests with coverage report
 ## Coverage
 
 - Line coverage floor: ≥70%. Not a target to game — a floor to maintain.
-- Focus coverage on services (pipewire, presets, devices, carla) and critical components.
+- Focus coverage on services (pipewire, presets, devices, carla, carlaOsc) and critical components.

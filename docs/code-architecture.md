@@ -17,6 +17,7 @@ persona/
 │   ├── services/
 │   │   ├── pipewire.ts          # pw-link CLI wrapper
 │   │   ├── carla.ts             # Carla lifecycle (spawn, health, crash)
+│   │   ├── carlaOsc.ts          # OSC client for Carla parameter control
 │   │   ├── devices.ts           # Device discovery + default detection
 │   │   └── presets.ts           # JSON config persistence (CRUD)
 │   └── ipc/
@@ -33,6 +34,7 @@ persona/
 │   │   ├── DeviceSelector.tsx   # Input/output device dropdowns
 │   │   ├── CarlaControls.tsx    # Launch/stop button + health indicator
 │   │   ├── StatusBar.tsx        # Bottom bar: preset, links, Carla status
+│   │   ├── ParameterPanel.tsx   # OSC parameter sliders per plugin
 │   │   ├── Toast.tsx            # Auto-dismiss notification system
 │   │   └── MiniPanel.tsx        # Compact view for always-on-top window
 │   └── types/
@@ -47,6 +49,7 @@ persona/
 Main process services have no cross-dependencies. Each service is standalone:
 - `pipewire.ts` — wraps `pw-link` CLI, knows nothing about presets or UI
 - `carla.ts` — manages Carla process, knows nothing about PipeWire links
+- `carlaOsc.ts` — OSC UDP client for Carla parameter control, knows nothing about presets
 - `devices.ts` — discovers PipeWire devices, knows nothing about presets
 - `presets.ts` — reads/writes JSON config, knows nothing about audio
 
@@ -62,6 +65,7 @@ The IPC handlers (`handlers.ts`) compose these services into use cases.
 | Preset CRUD | PresetEditor, PresetPanel context menu | Create/edit/delete/duplicate presets |
 | Device Selection | DeviceSelector dropdowns | User picks input/output devices |
 | Carla Control | CarlaControls buttons | Launch/stop Carla |
+| Parameter Control | ParameterPanel sliders | Real-time plugin parameter adjustment via OSC |
 
 ### Driven Ports (app → system)
 
@@ -71,6 +75,7 @@ The IPC handlers (`handlers.ts`) compose these services into use cases.
 | Plugin Discovery | `DeviceService` (`pw-link -o`) | Query visible Carla plugins |
 | Device Discovery | `DeviceService` (`pw-link -o/-i`, `pactl`) | Enumerate audio devices |
 | Plugin Host | `CarlaService` (`flatpak run` / `carla`) | Spawn/stop/monitor Carla |
+| Plugin Parameters | `CarlaOscService` (`node-osc` UDP) | Set plugin parameters in real time |
 | Persistence | `PresetStore` (JSON file) | Read/write preset config |
 
 ## Key Data Flows
@@ -79,9 +84,11 @@ The IPC handlers (`handlers.ts`) compose these services into use cases.
 ```
 User click → IPC preset:activate → activatePreset()
   → disconnectBatch(activeLinks)
-  → if plugins && !carla: launch Carla, wait for plugins
+  → if plugins && different .carxp: restart Carla, wait for plugins, connect OSC
+  → if plugins && same .carxp: skip restart (reuse running Carla)
   → buildPresetLinks(input, output, plugins)
   → connectBatch(newLinks)
+  → if parameterSnapshots: restore via OSC (instant)
   → broadcastStatus() → all windows + tray
 ```
 

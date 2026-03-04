@@ -18,13 +18,13 @@
 │                  │  └────────────┘  │                    │
 │                  └──────────────────┘                    │
 └─────────────────────────────────────────────────────────┘
-        ▲
-        │ pw-link commands
-        │
-┌───────┴──────┐
-│   Persona    │  ◄── Electron desktop app
-│  (switcher)  │      React + Tailwind UI
-└──────────────┘      System tray + mini panel
+        ▲                         ▲
+        │ pw-link commands        │ OSC (UDP:22752)
+        │                         │ parameter control
+┌───────┴─────────────────────────┴──┐
+│           Persona                   │  ◄── Electron desktop app
+│          (switcher)                 │      React + Tailwind UI
+└─────────────────────────────────────┘      System tray + mini panel
 ```
 
 ## Component Responsibilities
@@ -40,6 +40,7 @@
 - Exposes each plugin as a JACK client in PipeWire
 - Provides visual GUIs for tweaking plugin parameters
 - Saves/loads plugin states via `.carxp` project files
+- Exposes OSC API on UDP port 22752 for real-time parameter control
 - Managed by Persona (auto-start, crash detection, health monitoring)
 
 ### Persona (this project)
@@ -55,9 +56,10 @@
 Main Process (Node.js)              Renderer Process (Chromium)
 ├── PipeWireService (pw-link CLI)   ├── React App
 ├── CarlaService (spawn/health)     │   ├── PresetPanel (CRUD grid)
-├── DeviceService (discovery)       │   ├── PresetEditor (drag-drop)
-├── PresetStore (JSON persistence)  │   ├── DeviceSelector (dropdowns)
-├── TrayManager                     │   ├── CarlaControls
+├── CarlaOscService (UDP OSC)       │   ├── PresetEditor (drag-drop)
+├── DeviceService (discovery)       │   ├── DeviceSelector (dropdowns)
+├── PresetStore (JSON persistence)  │   ├── CarlaControls
+├── TrayManager                     │   ├── ParameterPanel (OSC sliders)
 └── MiniPanel window                │   ├── StatusBar
                                     │   └── ToastContainer
                                     └── IPC bridge (preload)
@@ -86,7 +88,10 @@ All links disconnected. No audio monitoring.
 
 1. User clicks a preset button (main window, mini panel, or tray)
 2. Current active links are disconnected in parallel (Promise.allSettled)
-3. If preset has plugins and Carla isn't running, auto-launch Carla and wait for plugins
-4. New links are built based on preset's plugin chain
-5. Links are created in parallel
-6. Status broadcast to all windows and tray
+3. If preset has plugins and Carla isn't running, auto-launch Carla, wait for plugins, connect OSC
+4. If preset has different `.carxp` than running Carla, restart Carla with new project file
+5. If preset has same `.carxp`, skip restart — reuse running Carla (instant)
+6. New links are built based on preset's plugin chain
+7. Links are created in parallel
+8. If preset has parameter snapshots, restore them via OSC (~50ms)
+9. Status broadcast to all windows and tray

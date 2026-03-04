@@ -3,8 +3,11 @@
   "version": "0.2.0",
   "description": "Real-time voice preset switcher for tabletop RPG sessions",
   "main": "./out/main/main.js",
-  "author": "lymphaofallcolours",
-  "license": "MIT",
+  "author": {
+    "name": "lymphaofallcolours",
+    "email": "lymphaofallcolours@users.noreply.github.com"
+  },
+  "license": "GPL-3.0",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",

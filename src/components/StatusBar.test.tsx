@@ -29,7 +29,8 @@ const baseStatus: AppStatus = {
   carlaRunning: false,
   carlaPlugins: [],
   linksActive: 0,
-  micMonitoring: false
+  micMonitoring: false,
+  oscConnected: false
 }
 
 describe('StatusBar', () => {
@@ -57,25 +58,25 @@ describe('StatusBar', () => {
 
   it('shows Monitor button', () => {
     render(<StatusBar status={baseStatus} presets={mockPresets} />)
-    expect(screen.getByText('Monitor')).toBeTruthy()
+    expect(screen.getByText('Monitor (Hear Mic)')).toBeTruthy()
   })
 
   it('calls micMonitor.toggle when Monitor clicked', () => {
     render(<StatusBar status={baseStatus} presets={mockPresets} />)
-    fireEvent.click(screen.getByText('Monitor'))
+    fireEvent.click(screen.getByText('Monitor (Hear Mic)'))
     expect(mockPersona.micMonitor.toggle).toHaveBeenCalled()
   })
 
   it('shows enable tooltip when monitoring is off', () => {
     render(<StatusBar status={baseStatus} presets={mockPresets} />)
-    const btn = screen.getByTitle('Enable mic monitoring')
+    const btn = screen.getByTitle('Hear your mic through output (for testing voices)')
     expect(btn).toBeTruthy()
   })
 
   it('shows disable tooltip when monitoring is on', () => {
     const status = { ...baseStatus, micMonitoring: true }
     render(<StatusBar status={status} presets={mockPresets} />)
-    const btn = screen.getByTitle('Disable mic monitoring')
+    const btn = screen.getByTitle('Stop hearing your mic')
     expect(btn).toBeTruthy()
   })
 })

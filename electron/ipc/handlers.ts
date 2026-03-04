@@ -391,6 +391,14 @@ export function registerIpcHandlers(): void {
     return carla.isRunning()
   })
 
+  ipcMain.handle(IPC.CARLA_SET_MINIMIZED, (_event, minimized: boolean) => {
+    carla.setLaunchMinimized(minimized)
+  })
+
+  ipcMain.handle(IPC.CARLA_GET_MINIMIZED, () => {
+    return carla.getLaunchMinimized()
+  })
+
   // --- Mic Monitor ---
 
   ipcMain.handle(IPC.MIC_MONITOR_TOGGLE, async () => {

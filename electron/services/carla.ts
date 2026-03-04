@@ -1,4 +1,4 @@
-import { spawn, execSync, ChildProcess } from 'child_process'
+import { spawn, execFile, execSync, ChildProcess } from 'child_process'
 import { existsSync } from 'fs'
 import { CARLA_OSC_PORT } from './carlaOsc'
 
@@ -15,6 +15,15 @@ let carlaProcess: ChildProcess | null = null
 let healthInterval: ReturnType<typeof setInterval> | null = null
 let onStatusChange: StatusCallback | null = null
 let onCrash: CrashCallback | null = null
+let launchMinimized = false
+
+export function setLaunchMinimized(minimized: boolean): void {
+  launchMinimized = minimized
+}
+
+export function getLaunchMinimized(): boolean {
+  return launchMinimized
+}
 
 /**
  * Check if Carla is already running (any instance, not just ours).
@@ -62,6 +71,12 @@ export function launch(projectFile?: string): boolean {
       })
 
       carlaProcess.unref()
+
+      // Minimize Carla window after it appears (if option is set)
+      if (launchMinimized) {
+        minimizeCarlaWindow()
+      }
+
       return true
     } catch {
       continue
@@ -72,12 +87,22 @@ export function launch(projectFile?: string): boolean {
 }
 
 /**
- * Stop the Carla process we spawned.
+ * Stop all Carla processes.
+ * Flatpak wraps Carla in a sandbox — killing the `flatpak run` wrapper
+ * doesn't kill the actual Carla process. Use pkill to ensure cleanup.
  */
 export function stop(): void {
+  // Kill our spawned process (the flatpak wrapper)
   if (carlaProcess && !carlaProcess.killed) {
     carlaProcess.kill('SIGTERM')
     carlaProcess = null
+  }
+
+  // Also kill any remaining Carla processes (handles Flatpak sandbox)
+  try {
+    execFile('pkill', ['-f', 'carla'], { timeout: 2000 })
+  } catch {
+    // No matching processes — that's fine
   }
 }
 
@@ -120,4 +145,25 @@ export function stopHealthPolling(): void {
     clearInterval(healthInterval)
     healthInterval = null
   }
+}
+
+/**
+ * Attempt to minimize Carla's window via xdotool.
+ * Retries a few times since Carla's window may take a moment to appear.
+ */
+function minimizeCarlaWindow(): void {
+  let attempts = 0
+  const interval = setInterval(() => {
+    attempts++
+    if (attempts > 10) {
+      clearInterval(interval)
+      return
+    }
+    try {
+      execFile('xdotool', ['search', '--name', 'Carla', 'windowminimize'], { timeout: 2000 })
+      clearInterval(interval)
+    } catch {
+      // Window not found yet, retry
+    }
+  }, 1000)
 }

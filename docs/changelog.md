@@ -7,6 +7,9 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.9.2] — 2026-03-04
+- fix(carla): fix process cleanup, add minimize toggle, rename Monitor (ac74a53)
+
 ## [0.9.1] — 2026-03-04
 - fix(ux): improve tray menu and click-outside-to-close for dropdowns (c01b261)
 

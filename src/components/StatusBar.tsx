@@ -30,7 +30,7 @@ export function StatusBar({ status, presets }: StatusBarProps) {
       <span className="flex items-center gap-3">
         <button
           onClick={handleMonitorToggle}
-          title={status.micMonitoring ? 'Disable mic monitoring' : 'Enable mic monitoring'}
+          title={status.micMonitoring ? 'Stop hearing your mic' : 'Hear your mic through output (for testing voices)'}
           className={`flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors ${
             status.micMonitoring
               ? 'bg-green-900/40 text-green-400 hover:bg-green-900/60'
@@ -42,7 +42,7 @@ export function StatusBar({ status, presets }: StatusBarProps) {
               status.micMonitoring ? 'bg-green-500' : 'bg-zinc-600'
             }`}
           />
-          Monitor
+          Monitor (Hear Mic)
         </button>
         <span>
           Links: {status.linksActive}

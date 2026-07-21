@@ -134,6 +134,7 @@ docs/
 ├── code-conventions.md    # Patterns, anti-patterns, naming, imports
 ├── testing.md             # Test strategies, pyramid, fixtures
 ├── adding-voices.md       # How to create new voice presets
+├── audio-recovery.md      # Audio state snapshot/restore safety net
 ├── carla-setup.md         # Carla Flatpak configuration
 ├── hardware.md            # Hardware inventory and PipeWire device names
 ├── pipewire-setup.md      # PipeWire service configuration

@@ -4,23 +4,17 @@
 
 ## Current Session
 
-**Date:** 2026-03-04
-**Goal:** Fix Carla+PipeWire integration and Persona routing
+**Date:** 2026-07-21
+**Goal:** Audio state safety net before resuming development (post Zorin 18.0→18.1 Discord breakage)
 
 ### Completed This Session
 
-- **Fix Carla+PipeWire integration** (post-.carxp refactor):
-  - `carla.ts`: async `stop()` with wait-for-death loop + force kill fallback
-  - `carla.ts`: JACK env vars (`JACK_NO_START_SERVER`, `PIPEWIRE_LATENCY`) in Flatpak args and spawn env
-  - `carla.ts`: stricter `isRunning()` using `[c]arla` pattern to avoid grep self-match
-  - `devices.ts`: `waitForCarlaPort()` — polls for ANY new PipeWire port after Carla launch (15s timeout)
-  - `devices.ts`: `discoverCarlaRoutingPorts()` — dynamically discovers Carla's input/output port pairs
-  - `devices.ts`: `snapshotBaseline()` now captures both input and output nodes
-  - `pipewire.ts`: `buildPresetLinks()` now accepts full port paths (carlaIn/carlaOut) instead of plugin name endpoints
-  - `carxp.ts`: `validateCarxp()` checks for plugins and internal `<Patchbay>` section
-  - `handlers.ts`: activatePreset rewritten — dynamic port discovery from PipeWire instead of .carxp parsing
-  - `handlers.ts`: warns user if .carxp has no internal patchbay (plugins won't be wired together)
-  - All tests updated: 128 tests passing across 11 test files
+- **Audio snapshot/restore safety net** (see ADR 2026-07-21):
+  - `scripts/audio-snapshot.sh` — captures PipeWire/WirePlumber config + state, pulse config, persona presets, systemd unit enablement, plus diagnostics (pw-dump, pw-link, pactl, package versions)
+  - `scripts/audio-restore.sh` — one-command exact restore (rsync --delete + absence manifest), `--dry-run`/`--yes` flags, restarts PipeWire stack, verified via dry run
+  - Baseline snapshot taken: `20260721-130709-known-good-zorin18.1` (~350K)
+  - `docs/audio-recovery.md` — what persists vs. what's ephemeral, snapshot discipline, "Discord hears me double" diagnosis checklist
+  - System audit: custom config dirs from March are empty (harmless); `filter-chain.service` enabled but inert (stock config, no filters); current node graph verified clean
 
 ### In Progress
 
@@ -28,16 +22,20 @@
 
 ### Next Steps
 
-1. **Manual testing:** kill stale Carla, run `npm run dev`, activate preset with .carxp, verify `pw-link -o | grep -i carla` shows ports
-2. If Carla still has no PipeWire ports: user needs to set Audio Driver = JACK in Carla's settings GUI
-3. Replace placeholder PNG icons with user-provided custom PNGs
-4. Crossfade toggle between presets (needs research)
-5. Discord overlay integration (research needed)
-6. Stream Deck / macro pad support (future)
+1. **Snapshot discipline:** run `bash scripts/audio-snapshot.sh <label>` before any experiment touching PipeWire config, pactl modules, or audio services
+2. **Manual testing:** kill stale Carla, run `npm run dev`, activate preset with .carxp, verify `pw-link -o | grep -i carla` shows ports
+3. If Carla still has no PipeWire ports: user needs to set Audio Driver = JACK in Carla's settings GUI
+4. Replace placeholder PNG icons with user-provided custom PNGs
+5. Crossfade toggle between presets (needs research)
+6. Discord overlay integration (research needed)
+7. Stream Deck / macro pad support (future)
 
 ---
 
 ## Previous Sessions
+
+### 2026-03-04 — Carla+PipeWire integration fixes (session 7)
+- Dynamic port discovery, async Carla stop, JACK env vars, 128 tests passing
 
 ### 2026-03-04 — Carla OSC integration (session 6)
 - node-osc, carlaOsc.ts, ParameterPanel, smart preset switching, 85 tests

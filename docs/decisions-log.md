@@ -16,6 +16,14 @@ Each entry captures a non-obvious technical decision. Record a decision when:
 
 <!-- Entries below — newest first -->
 
+## 2026-07-21 — Audio state snapshot/restore scripts as a safety net
+
+**Status:** Accepted
+**Context:** On Zorin OS 18.0, working on Persona coincided with persistent Discord routing breakage (mic heard doubled during screen share) that survived reboots and was only fixed by the 18.1 OS upgrade. Persona's own `pw-link` changes are ephemeral, so the breakage lived in persistent audio state — most likely WirePlumber's per-app routing memory (`~/.local/state/wireplumber/restore-stream`) or config/service changes made during debugging. User wants a guaranteed way to revert to a known-good state before continuing development.
+**Decision:** Two scripts: `scripts/audio-snapshot.sh` captures `~/.config/pipewire/`, `~/.config/wireplumber/`, `~/.local/state/wireplumber/`, `~/.config/pulse/`, `~/.config/persona/presets.json`, and systemd `--user` audio unit enablement into `~/.local/share/persona/audio-snapshots/<timestamp>/`, plus non-restored diagnostics (`pw-dump`, `pw-link`, pactl, package versions) for before/after comparison. `scripts/audio-restore.sh` stops the PipeWire stack, makes those paths byte-identical to the snapshot (rsync `--delete` + absence manifest), re-applies unit enablement, and restarts the stack. Supports `--dry-run` and `--yes`. Baseline snapshot `known-good-zorin18.1` taken with verified-clean routing. Documented in `docs/audio-recovery.md`.
+**Alternatives rejected:** (1) Timeshift/BTRFS system snapshots — restores the whole OS, far too coarse for an audio-only revert and disruptive mid-session. (2) Git-tracking the config dirs — `~/.local/state/wireplumber/` churns constantly (volumes, routing) and contains machine state, not project state. (3) Only documenting manual recovery steps — not "sure-proof"; the point is one-command revert.
+**Consequences:** Snapshots live outside the repo (machine-specific). Discipline required: take a labeled snapshot before any experiment that touches PipeWire config, pactl modules, or audio services. Restore drops all app audio streams, so apps (Discord, Carla) need restarting afterwards. `filter-chain.service` found enabled but inert (stock config, no filters) — left as-is and recorded in the baseline.
+
 ## 2026-03-04 — Dynamic PipeWire port discovery instead of .carxp parsing for routing
 
 **Status:** Accepted (supersedes static .carxp endpoint parsing for routing)

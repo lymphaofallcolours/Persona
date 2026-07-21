@@ -7,6 +7,9 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.11.0] — 2026-07-21
+- feat(recovery): audio state snapshot/restore safety net (7233af9)
+
 ## [0.10.3] — 2026-03-04
 - fix(carxp): detect ExternalPatchbay for Multi-Client mode validation (f53ab3c)
 

@@ -21,7 +21,16 @@
   LV2_PATH override from March; generated Techpriest loaded headless in Carla and
   measurably processed audio (ring-mod sidebands at 440±150 Hz). SWH extension
   installed (user scope) for AM pitchshifter.
-- Tests: 177 passing (was 128). Docs: carla-setup.md and adding-voices.md rewritten.
+- Tests: 180 passing (was 128). Docs: carla-setup.md and adding-voices.md rewritten.
+- **Roster expansion:** 15 archetypes total (added Multitudes, Psychic Chorus, Insect,
+  Aquatic People, Elf, Wizard, Astartes, Psychic Sage, Child, Servitor, Wraith).
+  MDA pack added to doctor requirements (MDA Detune for voice-doubling effects).
+  Multitudes (MDA) and Insect (SWH Decimator) verified live headless: signal
+  processed, detune sidebands measured. Gotcha: Carla's Flatpak sandbox cannot
+  read /tmp — generated .carxp files must live under $HOME.
+- **Mic-mute warning:** monitor toggle and preset activation now toast when the
+  source is pactl-muted (Discord mute) — root-caused from live "monitor doesn't
+  work" report where all links were healthy but the N32 source was muted.
 
 ### In Progress
 

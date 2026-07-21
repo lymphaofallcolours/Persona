@@ -190,6 +190,7 @@ describe('runAllChecks', () => {
       'flatpak info studio.kx.carla': CARLA_INFO,
       'flatpak info org.freedesktop.LinuxAudio.Plugins.Calf//25.08': 'ok',
       'flatpak info org.freedesktop.LinuxAudio.Plugins.swh//25.08': 'ok',
+      'flatpak info org.freedesktop.LinuxAudio.Plugins.MDA//25.08': 'ok',
       'flatpak override --user --show studio.kx.carla': '',
       'flatpak override --show studio.kx.carla': ''
     })
@@ -228,6 +229,7 @@ describe('runAllChecks', () => {
       'flatpak info studio.kx.carla': CARLA_INFO,
       'flatpak info org.freedesktop.LinuxAudio.Plugins.Calf//25.08': 'ok',
       'flatpak info org.freedesktop.LinuxAudio.Plugins.swh//25.08': 'ok',
+      'flatpak info org.freedesktop.LinuxAudio.Plugins.MDA//25.08': 'ok',
       'flatpak override --user --show studio.kx.carla': '',
       'flatpak override --show studio.kx.carla': '[Environment]\nLV2_PATH=/home/user/.local/lib/lv2\n'
     })
@@ -247,6 +249,7 @@ describe('runAllChecks', () => {
       'flatpak info studio.kx.carla': CARLA_INFO,
       'flatpak info org.freedesktop.LinuxAudio.Plugins.Calf//25.08': 'ok',
       'flatpak info org.freedesktop.LinuxAudio.Plugins.swh//25.08': 'ok',
+      'flatpak info org.freedesktop.LinuxAudio.Plugins.MDA//25.08': 'ok',
       'flatpak override --user --show studio.kx.carla':
         '[Environment]\nLV2_PATH=/app/extensions/Plugins/lv2:/app/lib/lv2\nLADSPA_PATH=/app/extensions/Plugins/ladspa:/app/lib/ladspa\n',
       'flatpak override --show studio.kx.carla': '[Environment]\nLV2_PATH=/home/user/.local/lib/lv2\n'

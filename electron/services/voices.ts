@@ -46,6 +46,79 @@ interface ArchetypeDef {
 const STEREO_IN = ['In L', 'In R']
 const STEREO_OUT = ['Out L', 'Out R']
 
+// Reused chain nodes (same plugin, different tuning per archetype)
+const pitchshift = (ratio: number): ChainPlugin => ({
+  name: 'AM pitchshifter',
+  uri: 'http://plugin.org.uk/swh-plugins/amPitchshift',
+  inPorts: ['Input'], outPorts: ['Output'],
+  params: [
+    { index: 0, name: 'Pitch shift', symbol: 'pitch', value: ratio },
+    { index: 1, name: 'Buffer size', symbol: 'size', value: 4 }
+  ]
+})
+
+const reverb = (decay: number, room: number, amount: number, hfDamp = 5000): ChainPlugin => ({
+  name: 'Calf Reverb',
+  uri: 'http://calf.sourceforge.net/plugins/Reverb',
+  inPorts: STEREO_IN, outPorts: STEREO_OUT,
+  params: [
+    { index: 3, name: 'Decay time', symbol: 'decay_time', value: decay },
+    { index: 4, name: 'High Frq Damp', symbol: 'hf_damp', value: hfDamp },
+    { index: 5, name: 'Room size', symbol: 'room_size', value: room },
+    { index: 7, name: 'Wet Amount', symbol: 'amount', value: amount }
+  ]
+})
+
+const detune = (amount: number, mix: number): ChainPlugin => ({
+  name: 'MDA Detune',
+  uri: 'http://drobilla.net/plugins/mda/Detune',
+  inPorts: ['Left In', 'Right In'], outPorts: ['Left Out', 'Right Out'],
+  params: [
+    { index: 0, name: 'Detune', symbol: 'detune', value: amount },
+    { index: 1, name: 'Mix', symbol: 'mix', value: mix }
+  ]
+})
+
+const multiChorus = (voices: number, depth: number, rate: number, amount: number): ChainPlugin => ({
+  name: 'Calf MultiChorus',
+  uri: 'http://calf.sourceforge.net/plugins/MultiChorus',
+  inPorts: STEREO_IN, outPorts: STEREO_OUT,
+  params: [
+    { index: 1, name: 'Mod Depth', symbol: 'mod_depth', value: depth },
+    { index: 2, name: 'Mod Rate', symbol: 'mod_rate', value: rate },
+    { index: 4, name: 'Voices', symbol: 'voices', value: voices },
+    { index: 6, name: 'Amount', symbol: 'amount', value: amount },
+    { index: 7, name: 'Dry Amount', symbol: 'dry', value: 1 }
+  ]
+})
+
+const phaser = (rate: number, amount: number): ChainPlugin => ({
+  name: 'Calf Phaser',
+  uri: 'http://calf.sourceforge.net/plugins/Phaser',
+  inPorts: STEREO_IN, outPorts: STEREO_OUT,
+  params: [
+    { index: 2, name: 'Mod rate', symbol: 'mod_rate', value: rate },
+    { index: 7, name: 'Amount', symbol: 'amount', value: amount }
+  ]
+})
+
+const decimator = (bits: number, sampleRate: number): ChainPlugin => ({
+  name: 'Decimator',
+  uri: 'http://plugin.org.uk/swh-plugins/decimator',
+  inPorts: ['Input'], outPorts: ['Output'],
+  params: [
+    { index: 0, name: 'Bit depth', symbol: 'bits', value: bits },
+    { index: 1, name: 'Sample rate (Hz)', symbol: 'fs', value: sampleRate }
+  ]
+})
+
+const eq8 = (params: PluginParam[]): ChainPlugin => ({
+  name: 'Calf Equalizer 8 Band',
+  uri: 'http://calf.sourceforge.net/plugins/Equalizer8Band',
+  inPorts: STEREO_IN, outPorts: STEREO_OUT,
+  params
+})
+
 // Parameter indices/symbols extracted from the LV2 TTLs shipped in the
 // Flathub plugin extensions (Calf 0.90.x, SWH 0.4.17) — see docs/adding-voices.md.
 const ARCHETYPES: ArchetypeDef[] = [
@@ -222,6 +295,242 @@ const ARCHETYPES: ArchetypeDef[] = [
           { index: 7, name: 'Wet Amount', symbol: 'amount', value: 0.45 }
         ]
       }
+    ]
+  },
+  {
+    id: 'multitudes',
+    name: 'Multitudes',
+    description: 'A legion speaking in unison — detuned copies swelling into a crowd of one.',
+    color: '#6d28d9',
+    chain: [
+      detune(0.45, 0.95),
+      multiChorus(8, 8, 0.15, 0.65),
+      reverb(2.0, 3, 0.25)
+    ]
+  },
+  {
+    id: 'psychic-chorus',
+    name: 'Psychic Chorus',
+    description: 'An ethereal choir echoing inside the mind, slow and weightless.',
+    color: '#a21caf',
+    chain: [
+      multiChorus(6, 9, 0.05, 0.7),
+      phaser(0.05, 0.6),
+      reverb(3.5, 4, 0.5)
+    ]
+  },
+  {
+    id: 'insect',
+    name: 'Insect',
+    description: 'Chittering hive-thing — buzzing carrier, degraded and thinned to a mandible rasp.',
+    color: '#65a30d',
+    chain: [
+      {
+        name: 'Calf Ring Modulator',
+        uri: 'http://calf.sourceforge.net/plugins/RingModulator',
+        inPorts: STEREO_IN, outPorts: STEREO_OUT,
+        params: [
+          { index: 12, name: 'Mod Freq', symbol: 'mod_freq', value: 2400 },
+          { index: 13, name: 'Mod Amount', symbol: 'mod_amount', value: 0.85 }
+        ]
+      },
+      decimator(6, 12000),
+      {
+        name: 'Calf Filter',
+        uri: 'http://calf.sourceforge.net/plugins/Filter',
+        inPorts: STEREO_IN, outPorts: STEREO_OUT,
+        params: [
+          { index: 0, name: 'Frequency', symbol: 'freq', value: 900 },
+          { index: 1, name: 'Resonance', symbol: 'res', value: 1.2 },
+          // 3 = 12dB/oct Highpass
+          { index: 2, name: 'Mode', symbol: 'mode', value: 3 }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'aquatic',
+    name: 'Aquatic People',
+    description: 'Voices of the deep — muffled, wavering, dissolving into dark water.',
+    color: '#0e7490',
+    chain: [
+      {
+        name: 'Calf Filter',
+        uri: 'http://calf.sourceforge.net/plugins/Filter',
+        inPorts: STEREO_IN, outPorts: STEREO_OUT,
+        params: [
+          { index: 0, name: 'Frequency', symbol: 'freq', value: 900 },
+          { index: 1, name: 'Resonance', symbol: 'res', value: 1.0 },
+          // 1 = 24dB/oct Lowpass
+          { index: 2, name: 'Mode', symbol: 'mode', value: 1 }
+        ]
+      },
+      multiChorus(4, 9, 0.4, 0.6),
+      reverb(2.8, 4, 0.4, 2500)
+    ]
+  },
+  {
+    id: 'elf',
+    name: 'Elf',
+    description: 'Bright fae elegance — lifted, airy, with a silver shimmer.',
+    color: '#16a34a',
+    chain: [
+      pitchshift(1.12),
+      eq8([
+        { index: 11, name: 'HP Active', symbol: 'hp_active', value: 1 },
+        { index: 12, name: 'HP Freq', symbol: 'hp_freq', value: 120 },
+        { index: 23, name: 'HS Active', symbol: 'hs_active', value: 1 },
+        { index: 24, name: 'Level H', symbol: 'hs_level', value: 1.8 },
+        { index: 25, name: 'Freq H', symbol: 'hs_freq', value: 6000 }
+      ]),
+      reverb(2.0, 3, 0.3, 9000)
+    ]
+  },
+  {
+    id: 'wizard',
+    name: 'Wizard',
+    description: 'Arcane gravitas — a lowered voice with weight, presence, and a trailing echo.',
+    color: '#4338ca',
+    chain: [
+      pitchshift(0.92),
+      eq8([
+        { index: 19, name: 'LS Active', symbol: 'ls_active', value: 1 },
+        { index: 20, name: 'Level L', symbol: 'ls_level', value: 1.6 },
+        { index: 21, name: 'Freq L', symbol: 'ls_freq', value: 180 },
+        { index: 31, name: 'F2 Active', symbol: 'p2_active', value: 1 },
+        { index: 32, name: 'Level 2', symbol: 'p2_level', value: 1.3 },
+        { index: 33, name: 'Freq 2', symbol: 'p2_freq', value: 2500 }
+      ]),
+      {
+        name: 'Calf Vintage Delay',
+        uri: 'http://calf.sourceforge.net/plugins/VintageDelay',
+        inPorts: STEREO_IN, outPorts: STEREO_OUT,
+        params: [
+          { index: 12, name: 'Time L', symbol: 'time_l', value: 3 },
+          { index: 13, name: 'Time R', symbol: 'time_r', value: 4 },
+          { index: 14, name: 'Feedback', symbol: 'feedback', value: 0.3 },
+          { index: 15, name: 'Wet', symbol: 'amount', value: 0.22 },
+          { index: 24, name: 'BPM', symbol: 'bpm', value: 75 }
+        ]
+      },
+      reverb(2.8, 4, 0.35)
+    ]
+  },
+  {
+    id: 'astartes',
+    name: 'Astartes',
+    description: 'Angel of Death — a deep transhuman rumble through a helmet vox-grille.',
+    color: '#334155',
+    chain: [
+      pitchshift(0.84),
+      {
+        name: 'Calf Compressor',
+        uri: 'http://calf.sourceforge.net/plugins/Compressor',
+        inPorts: STEREO_IN, outPorts: STEREO_OUT,
+        params: [
+          { index: 6, name: 'Threshold', symbol: 'threshold', value: 0.088 },
+          { index: 7, name: 'Ratio', symbol: 'ratio', value: 10 },
+          { index: 8, name: 'Attack', symbol: 'attack', value: 3 },
+          { index: 9, name: 'Release', symbol: 'release', value: 150 },
+          { index: 10, name: 'Makeup Gain', symbol: 'makeup', value: 2.5 }
+        ]
+      },
+      {
+        name: 'Calf Saturator',
+        uri: 'http://calf.sourceforge.net/plugins/Saturator',
+        inPorts: STEREO_IN, outPorts: STEREO_OUT,
+        params: [
+          { index: 12, name: 'Saturation', symbol: 'drive', value: 6.5 }
+        ]
+      },
+      eq8([
+        { index: 11, name: 'HP Active', symbol: 'hp_active', value: 1 },
+        { index: 12, name: 'HP Freq', symbol: 'hp_freq', value: 90 },
+        { index: 19, name: 'LS Active', symbol: 'ls_active', value: 1 },
+        { index: 20, name: 'Level L', symbol: 'ls_level', value: 1.5 },
+        { index: 21, name: 'Freq L', symbol: 'ls_freq', value: 220 },
+        { index: 31, name: 'F2 Active', symbol: 'p2_active', value: 1 },
+        { index: 32, name: 'Level 2', symbol: 'p2_level', value: 1.6 },
+        { index: 33, name: 'Freq 2', symbol: 'p2_freq', value: 3000 }
+      ]),
+      reverb(1.2, 1, 0.15)
+    ]
+  },
+  {
+    id: 'psychic-sage',
+    name: 'Psychic Sage',
+    description: 'Serene telepathic elder — a calm voice that arrives from everywhere at once.',
+    color: '#0f766e',
+    chain: [
+      detune(0.25, 0.85),
+      phaser(0.03, 0.5),
+      reverb(4.0, 5, 0.5)
+    ]
+  },
+  {
+    id: 'child',
+    name: 'Child',
+    description: 'Small and bright — pitched up, thin, and light.',
+    color: '#f59e0b',
+    chain: [
+      pitchshift(1.32),
+      eq8([
+        { index: 11, name: 'HP Active', symbol: 'hp_active', value: 1 },
+        { index: 12, name: 'HP Freq', symbol: 'hp_freq', value: 200 },
+        { index: 23, name: 'HS Active', symbol: 'hs_active', value: 1 },
+        { index: 24, name: 'Level H', symbol: 'hs_level', value: 1.4 },
+        { index: 25, name: 'Freq H', symbol: 'hs_freq', value: 5000 }
+      ])
+    ]
+  },
+  {
+    id: 'servitor',
+    name: 'Servitor',
+    description: 'Lobotomized mono-drone — degraded, flattened, barely alive.',
+    color: '#57534e',
+    chain: [
+      decimator(8, 16000),
+      {
+        name: 'Calf Ring Modulator',
+        uri: 'http://calf.sourceforge.net/plugins/RingModulator',
+        inPorts: STEREO_IN, outPorts: STEREO_OUT,
+        params: [
+          { index: 12, name: 'Mod Freq', symbol: 'mod_freq', value: 90 },
+          { index: 13, name: 'Mod Amount', symbol: 'mod_amount', value: 0.6 }
+        ]
+      },
+      {
+        name: 'Calf Compressor',
+        uri: 'http://calf.sourceforge.net/plugins/Compressor',
+        inPorts: STEREO_IN, outPorts: STEREO_OUT,
+        params: [
+          { index: 6, name: 'Threshold', symbol: 'threshold', value: 0.125 },
+          { index: 7, name: 'Ratio', symbol: 'ratio', value: 12 },
+          { index: 10, name: 'Makeup Gain', symbol: 'makeup', value: 2 }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'wraith',
+    name: 'Wraith',
+    description: 'Hollow whisper from beyond — swirling, distant, more echo than voice.',
+    color: '#475569',
+    chain: [
+      phaser(0.08, 0.7),
+      {
+        name: 'Calf Vintage Delay',
+        uri: 'http://calf.sourceforge.net/plugins/VintageDelay',
+        inPorts: STEREO_IN, outPorts: STEREO_OUT,
+        params: [
+          { index: 12, name: 'Time L', symbol: 'time_l', value: 4 },
+          { index: 13, name: 'Time R', symbol: 'time_r', value: 6 },
+          { index: 14, name: 'Feedback', symbol: 'feedback', value: 0.55 },
+          { index: 15, name: 'Wet', symbol: 'amount', value: 0.4 },
+          { index: 24, name: 'BPM', symbol: 'bpm', value: 60 }
+        ]
+      },
+      reverb(4.5, 5, 0.6, 2000)
     ]
   }
 ]

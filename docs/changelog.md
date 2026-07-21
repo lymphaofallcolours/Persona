@@ -7,6 +7,9 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.15.0] — 2026-07-21
+- feat(voices): expand archetype roster to 15 voices (1b61ba9)
+
 ## [0.14.0] — 2026-07-21
 - feat(monitor): warn when the mic is muted at the system level (d97deaf)
 

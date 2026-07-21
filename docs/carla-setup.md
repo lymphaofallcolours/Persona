@@ -28,16 +28,19 @@ which Flatpak mounts inside the Carla sandbox at `/app/extensions/Plugins/`:
 ```bash
 flatpak install --user -y flathub org.freedesktop.LinuxAudio.Plugins.Calf//<branch>
 flatpak install --user -y flathub org.freedesktop.LinuxAudio.Plugins.swh//<branch>
+flatpak install --user -y flathub org.freedesktop.LinuxAudio.Plugins.MDA//<branch>
 ```
 
 `<branch>` must match Carla's runtime branch (e.g. `25.08` for
 `org.kde.Platform/x86_64/5.15-25.08` — the doctor derives it from `flatpak info`).
 
 - **Calf** — Compressor, EQ, Ring Modulator, Flanger, Reverb, Saturator,
-  Filter, Vintage Delay (all archetype chains). Note: **Calf Pitch is NOT in
-  the extension** (experimental, excluded from release builds).
-- **SWH** — `AM pitchshifter` (mono), the pitch shifter used by the Demon
-  archetype since Calf Pitch is unavailable.
+  Filter, Vintage Delay, MultiChorus, Phaser (archetype chains). Note:
+  **Calf Pitch is NOT in the extension** (experimental, excluded from release builds).
+- **SWH** — `AM pitchshifter` (mono pitch shifting — Demon, Elf, Wizard,
+  Astartes, Child) and `Decimator` (bit/sample-rate degradation — Insect, Servitor).
+- **MDA** — `MDA Detune` (detuned voice doubling — Multitudes, Psychic Sage).
+  Port names differ from Calf: `Left In`/`Right In`/`Left Out`/`Right Out`.
 
 ### The stale-override trap (historical)
 

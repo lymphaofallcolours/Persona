@@ -18,7 +18,7 @@ import type { SetupCheck, SetupReport, SetupFixResult } from '../../src/types'
 const CARLA_APP_ID = 'studio.kx.carla'
 const FLATHUB_REPO_URL = 'https://dl.flathub.org/repo/flathub.flatpakrepo'
 const PLUGIN_PACK_PREFIX = 'org.freedesktop.LinuxAudio.Plugins.'
-export const REQUIRED_PLUGIN_PACKS = ['Calf', 'swh']
+export const REQUIRED_PLUGIN_PACKS = ['Calf', 'swh', 'MDA']
 // Paths the Carla sandbox mounts plugin extensions at. Used to neutralize
 // stale env overrides without root: a user-level override pointing here wins
 // over a system-level override pointing anywhere else.
@@ -115,7 +115,7 @@ async function checkCarlaInstalled(): Promise<SetupCheck> {
 }
 
 async function checkPluginPacks(): Promise<SetupCheck> {
-  const base = { id: 'plugins', label: 'Voice effect plugins (Calf, SWH)', fixable: true, fixLabel: 'Install plugins' }
+  const base = { id: 'plugins', label: 'Voice effect plugins (Calf, SWH, MDA)', fixable: true, fixLabel: 'Install plugins' }
   const branch = await getCarlaRuntimeBranch()
   if (!branch) {
     return { ...base, status: 'error', detail: 'Install Carla first — plugin packs must match its runtime version.', fixable: false }

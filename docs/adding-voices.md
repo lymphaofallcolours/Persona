@@ -3,7 +3,22 @@
 ## For users: the New Voice wizard
 
 1. Click **New Voice** in the header
-2. Pick an archetype (Techpriest, Demon, Vox Caster, Cavern Spirit)
+2. Pick an archetype:
+   - **Techpriest** — cold metallic machine-priest (ring mod core)
+   - **Demon** — deep pitched-down growl with saturation
+   - **Vox Caster** — crackling battlefield radio
+   - **Cavern Spirit** — distant echoing presence
+   - **Multitudes** — a legion speaking in unison (detune + multi-chorus)
+   - **Psychic Chorus** — ethereal choir inside the mind
+   - **Insect** — chittering hive-thing (high ring mod + bit decimation)
+   - **Aquatic People** — muffled wavering deep-water voice
+   - **Elf** — lifted, airy, silver shimmer
+   - **Wizard** — lowered voice with weight and trailing echo
+   - **Astartes** — deep transhuman rumble through a helmet vox-grille
+   - **Psychic Sage** — serene voice arriving from everywhere at once
+   - **Child** — pitched up, thin and bright
+   - **Servitor** — lobotomized degraded mono-drone
+   - **Wraith** — hollow whisper, more echo than voice
 3. Name it, click **Create Voice**
 
 Persona generates a complete Carla project (`~/.config/persona/voices/<name>.carxp`)

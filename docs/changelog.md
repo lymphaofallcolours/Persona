@@ -7,6 +7,9 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.16.1] — 2026-07-21
+- fix(ui): run natively on Wayland to stop desktop flicker (8d2c8f0)
+
 ## [0.16.0] — 2026-07-21
 - feat(discord): virtual microphone routing (ed5ecf6)
 

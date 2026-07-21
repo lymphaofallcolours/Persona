@@ -7,6 +7,9 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.12.0] — 2026-07-21
+- feat(onboarding): setup doctor and voice archetype generator services (6221a3c)
+
 ## [0.11.0] — 2026-07-21
 - feat(recovery): audio state snapshot/restore safety net (7233af9)
 

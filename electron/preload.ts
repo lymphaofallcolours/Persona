@@ -1,7 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from './ipc/channels'
 import type {
-  Preset, PresetGroup, AudioDevice, AppStatus, DeviceSelection, DeviceState, Toast, SessionProfile
+  Preset, PresetGroup, AudioDevice, AppStatus, DeviceSelection, DeviceState, Toast, SessionProfile,
+  SetupReport, SetupFixResult, VoiceArchetype
 } from '../src/types'
 
 export interface PersonaAPI {
@@ -69,6 +70,18 @@ export interface PersonaAPI {
   }
   miniPanel: {
     toggle(): Promise<void>
+  }
+  setup: {
+    runChecks(): Promise<SetupReport>
+    applyFix(checkId: string): Promise<SetupFixResult>
+  }
+  onboarding: {
+    isComplete(): Promise<boolean>
+    setComplete(complete: boolean): Promise<void>
+  }
+  voices: {
+    getArchetypes(): Promise<VoiceArchetype[]>
+    generate(archetypeId: string, name: string): Promise<Preset>
   }
 }
 
@@ -149,6 +162,18 @@ const api: PersonaAPI = {
   },
   miniPanel: {
     toggle: () => ipcRenderer.invoke('mini-panel:toggle')
+  },
+  setup: {
+    runChecks: () => ipcRenderer.invoke(IPC.SETUP_RUN_CHECKS),
+    applyFix: (checkId) => ipcRenderer.invoke(IPC.SETUP_APPLY_FIX, checkId)
+  },
+  onboarding: {
+    isComplete: () => ipcRenderer.invoke(IPC.ONBOARDING_GET),
+    setComplete: (complete) => ipcRenderer.invoke(IPC.ONBOARDING_SET, complete)
+  },
+  voices: {
+    getArchetypes: () => ipcRenderer.invoke(IPC.VOICES_GET_ARCHETYPES),
+    generate: (archetypeId, name) => ipcRenderer.invoke(IPC.VOICES_GENERATE, archetypeId, name)
   }
 }
 

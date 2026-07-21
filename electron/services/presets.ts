@@ -181,6 +181,18 @@ export function setSelectedDevices(input: string, output: string): void {
   saveConfig(config)
 }
 
+// --- Onboarding ---
+
+export function getOnboardingComplete(): boolean {
+  return loadConfig().onboardingComplete === true
+}
+
+export function setOnboardingComplete(complete: boolean): void {
+  const config = loadConfig()
+  config.onboardingComplete = complete
+  saveConfig(config)
+}
+
 // --- Groups ---
 
 export function getGroups(): PresetGroup[] {

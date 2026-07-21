@@ -5,6 +5,8 @@ import * as pipewire from '../services/pipewire'
 import * as devices from '../services/devices'
 import * as carla from '../services/carla'
 import * as carlaOsc from '../services/carlaOsc'
+import * as setup from '../services/setup'
+import * as voices from '../services/voices'
 import { validateCarxp } from '../services/carxp'
 import type { AudioLink } from '../services/pipewire'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
@@ -488,6 +490,52 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.OSC_SET_VOLUME, async (_event, pluginId: number, value: number) => {
     await carlaOsc.setVolume(pluginId, value)
+  })
+
+  // --- Setup doctor ---
+
+  ipcMain.handle(IPC.SETUP_RUN_CHECKS, async () => {
+    return setup.runAllChecks()
+  })
+
+  ipcMain.handle(IPC.SETUP_APPLY_FIX, async (_event, checkId: string) => {
+    // Engine config is read by Carla at startup — refuse to edit while running
+    if (checkId === 'engine' && carla.isRunning()) {
+      return { ok: false, message: 'Stop Carla before changing its engine settings.' }
+    }
+    const result = await setup.applyFix(checkId)
+    sendToast(result.ok ? 'info' : 'error', result.message)
+    return result
+  })
+
+  ipcMain.handle(IPC.ONBOARDING_GET, () => {
+    return presetStore.getOnboardingComplete()
+  })
+
+  ipcMain.handle(IPC.ONBOARDING_SET, (_event, complete: boolean) => {
+    presetStore.setOnboardingComplete(complete)
+  })
+
+  // --- Voice archetype generator ---
+
+  ipcMain.handle(IPC.VOICES_GET_ARCHETYPES, () => {
+    return voices.getArchetypes()
+  })
+
+  ipcMain.handle(IPC.VOICES_GENERATE, (_event, archetypeId: string, name: string) => {
+    const { path, archetype } = voices.generateVoice(archetypeId, name)
+
+    // Self-check: the generated project must pass the same validation used
+    // during preset activation (plugins present + patchbay wired).
+    const validation = validateCarxp(path)
+    if (!validation.hasPlugins || !validation.hasPatchbay) {
+      throw new Error('Generated voice project failed validation')
+    }
+
+    const preset = presetStore.createPreset(name, archetype.color)
+    const updated = presetStore.updatePreset(preset.id, { carxpPath: path })
+    sendToast('info', `Voice "${name}" created`)
+    return updated ?? preset
   })
 
   // --- Status ---

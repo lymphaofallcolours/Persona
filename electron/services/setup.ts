@@ -48,10 +48,11 @@ export function parseRuntimeBranch(infoOutput: string): string | null {
   return match ? match[1].split('-').pop() ?? null : null
 }
 
-/** Extract an env var value from `flatpak override --show` output. */
+/** Extract an env var value from `flatpak override --show` output.
+ *  An empty value is flatpak's marker for `--unset-env` — treated as absent. */
 export function parseOverrideEnv(overrideOutput: string, varName: string): string | null {
   const match = overrideOutput.match(new RegExp(`^${varName}=(.*)$`, 'm'))
-  return match ? match[1] : null
+  return match && match[1] !== '' ? match[1] : null
 }
 
 async function getCarlaRuntimeBranch(): Promise<string | null> {

@@ -83,6 +83,12 @@ LV2_PATH=/home/user/.local/lib/lv2
     expect(parseOverrideEnv(SHOW, 'VST_PATH')).toBeNull()
     expect(parseOverrideEnv('', 'LV2_PATH')).toBeNull()
   })
+
+  it('treats empty values (unset-env markers) as absent', () => {
+    const unsetShow = '[Context]\nunset-environment=LADSPA_PATH;LV2_PATH;\n\n[Environment]\nLADSPA_PATH=\nLV2_PATH=\n'
+    expect(parseOverrideEnv(unsetShow, 'LV2_PATH')).toBeNull()
+    expect(parseOverrideEnv(unsetShow, 'LADSPA_PATH')).toBeNull()
+  })
 })
 
 describe('INI parsing', () => {

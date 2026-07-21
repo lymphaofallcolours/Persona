@@ -19,7 +19,10 @@ persona/
 │   │   ├── carla.ts             # Carla lifecycle (spawn, health, crash)
 │   │   ├── carlaOsc.ts          # OSC client for Carla parameter control
 │   │   ├── devices.ts           # Device discovery + default detection
-│   │   └── presets.ts           # JSON config persistence (CRUD)
+│   │   ├── presets.ts           # JSON config persistence (CRUD)
+│   │   ├── carxp.ts             # .carxp validation (plugins, patchbay)
+│   │   ├── setup.ts             # Setup doctor: system checks + user-scope fixes
+│   │   └── voices.ts            # Voice archetype → wired .carxp generator
 │   └── ipc/
 │       ├── channels.ts          # IPC channel name constants
 │       └── handlers.ts          # ipcMain handler registration
@@ -36,7 +39,9 @@ persona/
 │   │   ├── StatusBar.tsx        # Bottom bar: preset, links, Carla status
 │   │   ├── ParameterPanel.tsx   # OSC parameter sliders per plugin
 │   │   ├── Toast.tsx            # Auto-dismiss notification system
-│   │   └── MiniPanel.tsx        # Compact view for always-on-top window
+│   │   ├── MiniPanel.tsx        # Compact view for always-on-top window
+│   │   ├── SetupDoctor.tsx      # One-time setup / self-healing checklist modal
+│   │   └── NewVoiceWizard.tsx   # Archetype picker → generated voice preset
 │   └── types/
 │       └── index.ts             # Shared type definitions
 ├── presets/
@@ -52,6 +57,9 @@ Main process services have no cross-dependencies. Each service is standalone:
 - `carlaOsc.ts` — OSC UDP client for Carla parameter control, knows nothing about presets
 - `devices.ts` — discovers PipeWire devices, knows nothing about presets
 - `presets.ts` — reads/writes JSON config, knows nothing about audio
+- `carxp.ts` — validates .carxp files, knows nothing about Carla's process
+- `setup.ts` — checks/repairs system config (flatpak, Carla2.conf), knows nothing about presets
+- `voices.ts` — generates .carxp files from archetype data, knows nothing about Carla's process
 
 The IPC handlers (`handlers.ts`) compose these services into use cases.
 

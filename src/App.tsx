@@ -8,6 +8,8 @@ import { StatusBar } from './components/StatusBar'
 import { CarlaControls } from './components/CarlaControls'
 import { ToastContainer } from './components/Toast'
 import { MiniPanel } from './components/MiniPanel'
+import { SetupDoctor } from './components/SetupDoctor'
+import { NewVoiceWizard } from './components/NewVoiceWizard'
 
 const isMini = new URLSearchParams(window.location.search).has('mini')
 
@@ -34,6 +36,9 @@ function MainApp() {
   const [savingSessionName, setSavingSessionName] = useState<string | null>(null)
   const sessionMenuRef = useRef<HTMLDivElement>(null)
   const [editingPreset, setEditingPreset] = useState<Preset | null | undefined>(undefined)
+  const [doctorOpen, setDoctorOpen] = useState(false)
+  const [doctorFirstRun, setDoctorFirstRun] = useState(false)
+  const [voiceWizardOpen, setVoiceWizardOpen] = useState(false)
 
   const refreshPresets = useCallback(() => {
     window.persona.presets.getAll().then(setPresets)
@@ -47,6 +52,29 @@ function MainApp() {
     const unsubscribe = window.persona.status.onChange(setStatus)
     return unsubscribe
   }, [refreshPresets])
+
+  // First run: open the setup doctor automatically
+  useEffect(() => {
+    window.persona.onboarding.isComplete().then(complete => {
+      if (!complete) {
+        setDoctorFirstRun(true)
+        setDoctorOpen(true)
+      }
+    })
+  }, [])
+
+  const handleDoctorClose = () => {
+    setDoctorOpen(false)
+    if (doctorFirstRun) {
+      window.persona.onboarding.setComplete(true)
+      setDoctorFirstRun(false)
+    }
+  }
+
+  const handleVoiceCreated = () => {
+    setVoiceWizardOpen(false)
+    refreshPresets()
+  }
 
   // Close session menu on click outside
   useEffect(() => {
@@ -127,6 +155,20 @@ function MainApp() {
           </h1>
           <div className="flex items-center gap-3">
             <CarlaControls status={status} />
+            <button
+              onClick={() => setVoiceWizardOpen(true)}
+              title="Create a voice from an archetype"
+              className="px-2 py-0.5 rounded text-[10px] bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600"
+            >
+              New Voice
+            </button>
+            <button
+              onClick={() => setDoctorOpen(true)}
+              title="Check and repair the audio setup"
+              className="px-2 py-0.5 rounded text-[10px] bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600"
+            >
+              Setup
+            </button>
             <div className="relative" ref={sessionMenuRef}>
               <button
                 onClick={() => setSessionMenuOpen(!sessionMenuOpen)}
@@ -223,6 +265,14 @@ function MainApp() {
           onSave={handleSavePreset}
           onCancel={handleCancelEdit}
         />
+      )}
+
+      {doctorOpen && (
+        <SetupDoctor firstRun={doctorFirstRun} onClose={handleDoctorClose} />
+      )}
+
+      {voiceWizardOpen && (
+        <NewVoiceWizard onCreated={handleVoiceCreated} onCancel={() => setVoiceWizardOpen(false)} />
       )}
     </div>
   )

@@ -7,6 +7,9 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.13.0] — 2026-07-21
+- feat(ui): setup doctor panel and new voice wizard (f344bae)
+
 ## [0.12.0] — 2026-07-21
 - feat(onboarding): setup doctor and voice archetype generator services (6221a3c)
 

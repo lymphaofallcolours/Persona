@@ -7,6 +7,11 @@ import * as carla from './services/carla'
 import * as carlaOsc from './services/carlaOsc'
 import * as devicesService from './services/devices'
 
+// Chromium GPU compositing on old Intel iGPUs under XWayland causes repaint
+// storms that make OTHER windows flicker while Persona is open. The UI is a
+// simple preset grid — software rendering is imperceptible and artifact-free.
+app.disableHardwareAcceleration()
+
 let mainWindow: BrowserWindow | null = null
 let miniPanel: BrowserWindow | null = null
 let isQuitting = false

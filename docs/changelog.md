@@ -7,6 +7,9 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.15.3] — 2026-07-21
+- fix(ui): disable hardware acceleration to stop desktop flicker (2b1a786)
+
 ## [0.15.2] — 2026-07-21
 - fix(pipewire): listLinks never parsed real pw-link output (fe82ec5)
 

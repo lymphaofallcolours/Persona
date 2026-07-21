@@ -7,6 +7,9 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.17.0] — 2026-07-21
+- feat(ui): notify once when closing to tray (acee90f)
+
 ## [0.16.1] — 2026-07-21
 - fix(ui): run natively on Wayland to stop desktop flicker (8d2c8f0)
 

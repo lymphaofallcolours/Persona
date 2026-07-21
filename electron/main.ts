@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, globalShortcut } from 'electron'
+import { app, BrowserWindow, ipcMain, globalShortcut, Notification } from 'electron'
 import { join } from 'path'
 import { registerIpcHandlers, stopPolling, activatePreset, disconnectAllLinks, sendToast } from './ipc/handlers'
 import { createTray, updateTrayMenu, destroyTray } from './tray'
@@ -45,6 +45,7 @@ function createMainWindow(): BrowserWindow {
     if (!isQuitting) {
       e.preventDefault()
       mainWindow?.hide()
+      notifyHiddenToTray()
     }
   })
 
@@ -184,6 +185,23 @@ app.whenReady().then(() => {
   })
 
 })
+
+let trayNoticeShown = false
+
+/**
+ * Closing the window hides to tray while audio routing (presets, monitor)
+ * stays fully active — which reads as "I closed it but still hear myself".
+ * Tell the user once per session, via a system notification since the
+ * in-app toast lives in the now-hidden window.
+ */
+function notifyHiddenToTray(): void {
+  if (trayNoticeShown || !Notification.isSupported()) return
+  trayNoticeShown = true
+  new Notification({
+    title: 'Persona is still running',
+    body: 'Audio routing and monitoring stay active in the tray. Right-click the tray icon and choose Quit to stop everything.'
+  }).show()
+}
 
 let cleanupStarted = false
 

@@ -21,6 +21,7 @@ persona/
 │   │   ├── devices.ts           # Device discovery + default detection
 │   │   ├── presets.ts           # JSON config persistence (CRUD)
 │   │   ├── carxp.ts             # .carxp validation (plugins, patchbay)
+│   │   ├── virtualMic.ts        # Null-sink virtual mic for Discord routing
 │   │   ├── setup.ts             # Setup doctor: system checks + user-scope fixes
 │   │   └── voices.ts            # Voice archetype → wired .carxp generator
 │   └── ipc/

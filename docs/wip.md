@@ -31,6 +31,14 @@
 - **Mic-mute warning:** monitor toggle and preset activation now toast when the
   source is pactl-muted (Discord mute) — root-caused from live "monitor doesn't
   work" report where all links were healthy but the N32 source was muted.
+- **Link-leak fixes:** quit now disconnects all links + startup sweeps stale
+  device-to-device links; fixed listLinks parser (never worked on real output).
+- **Desktop flicker fix:** hardware acceleration disabled (Haswell iGPU +
+  XWayland compositing artifact).
+- **Virtual mic for Discord** (ADR 2026-07-21): null sink `persona_virtual_mic`
+  managed by new virtualMic.ts; output device entry; monitor toggle plays
+  processed voice when virtual output selected; docs/discord-setup.md.
+  End-to-end verified headless (processed signal captured at sink monitor).
 
 ### In Progress
 

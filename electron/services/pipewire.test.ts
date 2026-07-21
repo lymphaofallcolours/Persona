@@ -5,7 +5,7 @@ vi.mock('child_process', () => ({
 }))
 
 import { execFile } from 'child_process'
-import { buildPresetLinks, buildMonitorLinks, disconnectStaleDeviceLinks } from './pipewire'
+import { buildPresetLinks, buildMonitorLinks, buildVirtualMicMonitorLinks, disconnectStaleDeviceLinks } from './pipewire'
 
 const mockExecFile = vi.mocked(execFile)
 
@@ -52,6 +52,21 @@ describe('disconnectStaleDeviceLinks', () => {
     ])
   })
 
+  it('sweeps stale virtual-mic links too', async () => {
+    const output = [
+      'alsa_input.usb-mic:capture_FL',
+      '  |-> persona_virtual_mic:playback_FL',
+      'persona_virtual_mic:monitor_FL',
+      '  |-> alsa_output.pci-0000.analog-stereo:playback_FL'
+    ].join('\n')
+    mockExecFile.mockImplementation((_cmd: any, args: any, _opts: any, callback: any) => {
+      callback(null, (args as string[])[0] === '-l' ? output : '')
+      return {} as any
+    })
+
+    expect(await disconnectStaleDeviceLinks()).toBe(2)
+  })
+
   it('does nothing when no direct device links exist', async () => {
     mockExecFile.mockImplementation((_cmd: any, args: any, _opts: any, callback: any) => {
       callback(null, (args as string[])[0] === '-l' ? 'speech-dispatcher-dummy:output_FL\n  |-> discord_capture:input_FL\n' : '')
@@ -61,6 +76,15 @@ describe('disconnectStaleDeviceLinks', () => {
     const removed = await disconnectStaleDeviceLinks()
     expect(removed).toBe(0)
     expect(calls().filter(args => args[0] === '-d')).toHaveLength(0)
+  })
+})
+
+describe('buildVirtualMicMonitorLinks', () => {
+  it('routes the virtual mic monitor (processed voice) to a physical output', () => {
+    expect(buildVirtualMicMonitorLinks('persona_virtual_mic', SINK)).toEqual([
+      { source: 'persona_virtual_mic:monitor_FL', destination: `${SINK}:playback_FL` },
+      { source: 'persona_virtual_mic:monitor_FR', destination: `${SINK}:playback_FR` }
+    ])
   })
 })
 

@@ -136,6 +136,7 @@ docs/
 ├── adding-voices.md       # How to create new voice presets
 ├── audio-recovery.md      # Audio state snapshot/restore safety net
 ├── carla-setup.md         # Carla Flatpak configuration
+├── discord-setup.md       # Virtual mic routing for voice calls
 ├── hardware.md            # Hardware inventory and PipeWire device names
 ├── pipewire-setup.md      # PipeWire service configuration
 ├── troubleshooting.md     # Common issues and fixes

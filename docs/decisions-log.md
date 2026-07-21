@@ -16,6 +16,14 @@ Each entry captures a non-obvious technical decision. Record a decision when:
 
 <!-- Entries below — newest first -->
 
+## 2026-07-21 — Virtual microphone for Discord routing
+
+**Status:** Accepted
+**Context:** The original architecture routes mic → Carla → physical output (built for in-person sessions where room speakers play the modulated voice). For Discord, this is doubly wrong: the user permanently hears themselves while a preset is active, and Discord captures the raw mic — participants never hear the effects.
+**Decision:** New `virtualMic.ts` service manages a PipeWire null sink (`persona_virtual_mic`, via `pactl load-module module-null-sink`): created at app start (stale instances from crashed runs unloaded first), destroyed on quit. It appears as an extra output device ("Persona Virtual Mic (for Discord)"); selecting it routes Carla's output into the sink, and Discord selects "Monitor of Persona Virtual Mic" as its input. Monitor toggle changes semantics with the virtual output: it plays the sink's monitor ports (the processed voice — what the call hears) through the default physical sink, instead of the raw-mic passthrough. Stale-link sweep extended to cover virtual-mic link patterns. `buildPresetLinks` needed no changes (sink input ports are `playback_FL/FR`, same as ALSA sinks — verified live).
+**Alternatives rejected:** (1) `module-remap-source` on Carla's monitor — Carla's ports are JACK-client ports, not a device monitor; not addressable that way. (2) Persistent sink (survive Persona quit) — leaves system residue; a sink with no feeders is just silence for Discord, better to remove and let Discord fall back. (3) Doctor check for the sink — it's runtime state managed by the app itself; a failure toast at startup covers it.
+**Consequences:** End-to-end verified headless: sine → Carla (Techpriest) → virtual sink monitor captured the processed signal (ring-mod sidebands dominant). Users must select the Discord input once (`docs/discord-setup.md`). Discord's noise suppression may eat effect tails — documented. Physical-output workflow unchanged for in-person sessions.
+
 ## 2026-07-21 — Setup doctor + generated voice archetypes (zero-config onboarding)
 
 **Status:** Accepted

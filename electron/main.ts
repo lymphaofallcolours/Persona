@@ -6,6 +6,7 @@ import * as presetStore from './services/presets'
 import * as carla from './services/carla'
 import * as carlaOsc from './services/carlaOsc'
 import * as devicesService from './services/devices'
+import * as virtualMic from './services/virtualMic'
 
 // Chromium GPU compositing on old Intel iGPUs under XWayland causes repaint
 // storms that make OTHER windows flicker while Persona is open. The UI is a
@@ -179,7 +180,7 @@ app.on('before-quit', (event) => {
   globalShortcut.unregisterAll()
   stopPolling()
   destroyTray()
-  Promise.allSettled([disconnectAllLinks(), carla.stop()]).finally(() => app.exit(0))
+  Promise.allSettled([disconnectAllLinks(), virtualMic.destroy(), carla.stop()]).finally(() => app.exit(0))
 })
 
 app.on('window-all-closed', () => {

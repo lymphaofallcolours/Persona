@@ -7,6 +7,7 @@ import * as carla from '../services/carla'
 import * as carlaOsc from '../services/carlaOsc'
 import * as setup from '../services/setup'
 import * as voices from '../services/voices'
+import * as virtualMic from '../services/virtualMic'
 import { validateCarxp } from '../services/carxp'
 import type { AudioLink } from '../services/pipewire'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
@@ -75,6 +76,25 @@ async function warnIfMicMuted(inputDevice: string): Promise<void> {
   if (await devices.getSourceMute(inputDevice) === true) {
     sendToast('warning', 'Your microphone is muted at the system level (Discord mute does this) — audio will be silent until you unmute.')
   }
+}
+
+/**
+ * Monitor links depend on where the preset output goes. Physical output:
+ * clean mic passthrough (hear yourself raw). Virtual mic output: nothing
+ * reaches the speakers by design, so monitoring means listening to the
+ * virtual mic's monitor — the processed voice, exactly what the call hears —
+ * on the default physical output.
+ */
+async function buildMonitorLinksFor(inputDevice: string, outputDevice: string): Promise<AudioLink[]> {
+  if (outputDevice !== virtualMic.VIRTUAL_MIC_NAME) {
+    return pipewire.buildMonitorLinks(inputDevice, outputDevice)
+  }
+  const physical = await devices.getDefaultSink()
+  if (!physical || physical === virtualMic.VIRTUAL_MIC_NAME) {
+    sendToast('warning', 'No physical output found for monitoring.')
+    return []
+  }
+  return pipewire.buildVirtualMicMonitorLinks(virtualMic.VIRTUAL_MIC_NAME, physical)
 }
 
 async function pollDevices(): Promise<void> {
@@ -208,7 +228,7 @@ export async function activatePreset(id: string): Promise<void> {
 
   // 5. Re-establish monitor links if monitoring is active
   if (micMonitoring) {
-    const monLinks = pipewire.buildMonitorLinks(inputDevice, outputDevice)
+    const monLinks = await buildMonitorLinksFor(inputDevice, outputDevice)
     await pipewire.connectBatch(monLinks)
     monitorLinks = monLinks
   }
@@ -247,6 +267,11 @@ export function registerIpcHandlers(): void {
   // Sweep mic→output links left by a previous run (crash, or versions that
   // didn't clean up on quit) — otherwise they monitor the mic forever.
   pipewire.disconnectStaleDeviceLinks().catch(() => { /* PipeWire not available */ })
+
+  // Create the virtual mic sink (cleans up stale instances from crashed runs)
+  virtualMic.create().then(ok => {
+    if (!ok) sendToast('warning', 'Could not create the Persona Virtual Mic — Discord routing unavailable.')
+  })
 
   carla.onEvents(
     (running, plugins) => {
@@ -413,6 +438,17 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.DEVICES_GET_OUTPUTS, async () => {
     knownOutputs = await devices.getOutputDevices()
+    if (virtualMic.isActive()) {
+      return [
+        ...knownOutputs,
+        {
+          name: virtualMic.VIRTUAL_MIC_NAME,
+          description: 'Persona Virtual Mic (for Discord)',
+          ports: ['playback_FL', 'playback_FR'],
+          type: 'output' as const
+        }
+      ]
+    }
     return knownOutputs
   })
 
@@ -422,6 +458,9 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.DEVICES_SET_SELECTED, (_event, input: string, output: string) => {
     presetStore.setSelectedDevices(input, output)
+    if (output === virtualMic.VIRTUAL_MIC_NAME) {
+      sendToast('info', 'In Discord, set the input device to "Monitor of Persona Virtual Mic". Re-activate your preset to apply the routing.')
+    }
   })
 
   // --- Carla ---
@@ -460,7 +499,7 @@ export function registerIpcHandlers(): void {
       }
       micMonitoring = false
     } else {
-      const links = pipewire.buildMonitorLinks(inputDevice, outputDevice)
+      const links = await buildMonitorLinksFor(inputDevice, outputDevice)
       await pipewire.connectBatch(links)
       monitorLinks = links
       micMonitoring = true

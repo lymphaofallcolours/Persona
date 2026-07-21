@@ -7,6 +7,9 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.17.2] — 2026-07-21
+- fix(presets): duplicate clones the .carxp file instead of sharing it (733f4ec)
+
 ## [0.17.1] — 2026-07-21
 - fix(tray): use PNG icons — nativeImage cannot decode SVG (e1a61a2)
 

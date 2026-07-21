@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs'
-import { join } from 'path'
+import { readFileSync, writeFileSync, mkdirSync, existsSync, copyFileSync } from 'fs'
+import { join, dirname, basename, extname } from 'path'
 import { homedir } from 'os'
 import { app } from 'electron'
 import { v4 as uuidv4 } from 'uuid'
@@ -145,6 +145,30 @@ export function deletePreset(id: string): boolean {
   return true
 }
 
+/**
+ * Copy a preset's .carxp to a sibling file so the duplicate owns its own
+ * project. Without this, both presets share one file and Carla's Save from
+ * either silently overwrites the other's voice.
+ */
+function duplicateCarxpFile(srcPath: string): string | undefined {
+  try {
+    if (!existsSync(srcPath)) return undefined
+    const dir = dirname(srcPath)
+    const ext = extname(srcPath) || '.carxp'
+    const base = basename(srcPath, ext)
+    let target = join(dir, `${base}-copy${ext}`)
+    let counter = 2
+    while (existsSync(target)) {
+      target = join(dir, `${base}-copy-${counter}${ext}`)
+      counter++
+    }
+    copyFileSync(srcPath, target)
+    return target
+  } catch {
+    return undefined
+  }
+}
+
 export function duplicatePreset(id: string): Preset | undefined {
   const config = loadConfig()
   const source = config.presets.find(p => p.id === id)
@@ -155,6 +179,9 @@ export function duplicatePreset(id: string): Preset | undefined {
     id: uuidv4(),
     name: `${source.name} (Copy)`,
     isFactory: false
+  }
+  if (source.carxpPath) {
+    copy.carxpPath = duplicateCarxpFile(source.carxpPath) ?? source.carxpPath
   }
   config.presets.push(copy)
   saveConfig(config)

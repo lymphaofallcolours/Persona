@@ -89,8 +89,28 @@ describe('PresetStore', () => {
     expect(copy).toBeTruthy()
     expect(copy!.id).not.toBe(original.id)
     expect(copy!.name).toBe('Original (Copy)')
+    // Source file doesn't exist — path carried over unchanged
     expect(copy!.carxpPath).toBe('/path/to/test.carxp')
     expect(copy!.isFactory).toBe(false)
+  })
+
+  it('copies the .carxp file so the duplicate owns its own project', () => {
+    const voicesDir = join(tempDir, 'voices')
+    mkdirSync(voicesDir, { recursive: true })
+    const srcPath = join(voicesDir, 'myvoice.carxp')
+    writeFileSync(srcPath, '<CARLA-PROJECT>original</CARLA-PROJECT>')
+
+    const original = createPreset('My Voice', '#222')
+    updatePreset(original.id, { carxpPath: srcPath })
+
+    const copy = duplicatePreset(original.id)
+    expect(copy!.carxpPath).toBe(join(voicesDir, 'myvoice-copy.carxp'))
+    expect(copy!.carxpPath).not.toBe(srcPath)
+    expect(readFileSync(copy!.carxpPath!, 'utf-8')).toBe('<CARLA-PROJECT>original</CARLA-PROJECT>')
+
+    // Second duplicate gets a numbered file, not an overwrite
+    const copy2 = duplicatePreset(original.id)
+    expect(copy2!.carxpPath).toBe(join(voicesDir, 'myvoice-copy-2.carxp'))
   })
 
   it('reorders presets by ID list', () => {

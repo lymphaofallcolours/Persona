@@ -55,6 +55,19 @@ export const IPC = {
   OSC_SET_DRYWET: 'osc:set-drywet',
   OSC_SET_VOLUME: 'osc:set-volume',
 
+  // Setup doctor
+  SETUP_RUN_CHECKS: 'setup:run-checks',
+  SETUP_APPLY_FIX: 'setup:apply-fix',
+  ONBOARDING_GET: 'onboarding:get',
+  ONBOARDING_SET: 'onboarding:set',
+
+  // Voice archetype generator
+  VOICES_GET_ARCHETYPES: 'voices:get-archetypes',
+  VOICES_GENERATE: 'voices:generate',
+  VOICES_GET_DIR: 'voices:get-dir',
+  VOICES_SET_DIR: 'voices:set-dir',
+  DIALOG_OPEN_DIRECTORY: 'dialog:open-directory',
+
   // Status
   STATUS_GET: 'status:get',
   STATUS_CHANGED: 'status:changed',

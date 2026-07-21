@@ -1,73 +1,86 @@
 # Carla Setup
 
+> **Users should never need this page.** Persona's Setup Doctor (header → Setup,
+> auto-opens on first run) detects and repairs everything below with one click,
+> all user-scope, no sudo. This page documents what the doctor does and why.
+
 ## Installation
 
-Installed via Flatpak: `studio.kx.carla` v2.5.10 from Flathub.
+Flatpak: `studio.kx.carla` (2.5.x) from Flathub. The doctor installs it with
+`flatpak install --user -y flathub studio.kx.carla` (~1 GB with runtime).
 
-## Audio Driver
+## Audio Driver & Process Mode
 
-JACK — routed through PipeWire's JACK compatibility layer (`pipewire-jack` package).
+- **AudioDriver=JACK** — routed through PipeWire's JACK compatibility layer.
+- **ProcessMode=3 (Patchbay)** — Carla appears in PipeWire as a single `Carla`
+  node with `audio-in1/2` / `audio-out1/2` ports; plugins are wired *inside*
+  Carla via the project's `<Patchbay>` section.
 
-## Flatpak Overrides
+Both are written directly to `~/.var/app/studio.kx.carla/config/falkTX/Carla2.conf`
+(plain INI) by the doctor's "Configure" fix — no GUI interaction needed. The
+file is only safe to edit while Carla is not running (enforced in the handler).
 
-The Flatpak sandbox blocks access to host plugin directories. Workaround:
-plugins are copied to user-accessible locations with env vars set.
+## Plugins: Flathub extensions, NOT host packages
+
+Plugins come from Flathub `org.freedesktop.LinuxAudio.Plugins.*` extensions,
+which Flatpak mounts inside the Carla sandbox at `/app/extensions/Plugins/`:
 
 ```bash
-# LADSPA plugins
-cp /usr/lib/ladspa/*.so ~/.local/lib/ladspa/
-flatpak override --user --env=LADSPA_PATH=/home/lympha/.local/lib/ladspa studio.kx.carla
-
-# LV2 plugins
-cp -r /usr/lib/lv2/* ~/.local/lib/lv2/
-cp -r /usr/lib/x86_64-linux-gnu/lv2/* ~/.local/lib/lv2/
-flatpak override --user --env=LV2_PATH=/home/lympha/.local/lib/lv2 studio.kx.carla
+flatpak install --user -y flathub org.freedesktop.LinuxAudio.Plugins.Calf//<branch>
+flatpak install --user -y flathub org.freedesktop.LinuxAudio.Plugins.swh//<branch>
+flatpak install --user -y flathub org.freedesktop.LinuxAudio.Plugins.MDA//<branch>
 ```
 
-**Important**: After installing new plugins on the host, re-copy them to `~/.local/lib/`.
+`<branch>` must match Carla's runtime branch (e.g. `25.08` for
+`org.kde.Platform/x86_64/5.15-25.08` — the doctor derives it from `flatpak info`).
 
-## Plugin Packages
+- **Calf** — Compressor, EQ, Ring Modulator, Flanger, Reverb, Saturator,
+  Filter, Vintage Delay, MultiChorus, Phaser (archetype chains). Note:
+  **Calf Pitch is NOT in the extension** (experimental, excluded from release builds).
+- **SWH** — `AM pitchshifter` (mono pitch shifting — Demon, Elf, Wizard,
+  Astartes, Child) and `Decimator` (bit/sample-rate degradation — Insect, Servitor).
+- **MDA** — `MDA Detune` (detuned voice doubling — Multitudes, Psychic Sage).
+  Port names differ from Calf: `Left In`/`Right In`/`Left Out`/`Right Out`.
 
-### Calf Studio Gear (`calf-plugins`)
-LV2 plugins with full GUIs. Used for:
-- **Calf Compressor** — dynamics flattening
-- **Calf Equalizer 8 Band** — frequency shaping
-- **Calf Ring Modulator** — metallic/alien harmonics (the key Techpriest effect)
-- **Calf Flanger** — metallic shimmer via comb filtering
-- **Calf Reverb** — spatial effect
-- **Calf Pitch** — pitch shifting (available but not currently loaded)
+### The stale-override trap (historical)
 
-Other available Calf plugins: Phaser, Crusher, Saturator, Vocoder, Multi Chorus,
-Rotary Speaker, Pulsator, Vinyl, etc. All can be loaded in Carla on demand.
-
-### SWH Plugins (`swh-plugins`)
-LADSPA plugins. Available but not currently used in favor of Calf LV2 equivalents.
-Includes: ringmod, flanger, comb filter, pitch shift, decimator, and many more.
-
-### LSP Plugins (`lsp-plugins-lv2`)
-High-quality LV2 plugins. Installed but not currently used.
-Includes: compressors, gates, limiters, EQs, etc.
+The pre-2026-07 setup copied host plugins to `~/.local/lib/{ladspa,lv2}` and set
+`LV2_PATH`/`LADSPA_PATH` via `flatpak override`. **Any such override shadows the
+extension mount and hides the extension plugins.** The doctor detects this and
+repairs it: user-level overrides are `--unset-env`'d; a system-level override
+(needs root to delete) is instead shadowed by a user-level override pointing at
+`/app/extensions/Plugins/...`. Note `flatpak override --show` renders unset-env
+markers as empty `VAR=` lines — empty means unset, not "set to empty".
 
 ## Project Files
 
-Saved at: `~/Documents/Carla-Projects/`
-- `Techpriest.carxp` — full metallic voice chain
-- `Normal.carxp` — empty (passthrough)
+- Generated voices: `~/.config/persona/voices/*.carxp` (via New Voice wizard).
+- Legacy hand-made projects: `~/.var/app/studio.kx.carla/data/carla-projects/`.
 
-## Plugin Behavior in PipeWire
+A valid project needs a `<Patchbay>` section wiring the plugins; without it the
+plugins load disconnected and pass no audio (Persona warns on activation).
+Format details → `docs/adding-voices.md`.
 
-Each Carla plugin appears as a separate JACK client in PipeWire with ports:
-- `<Plugin Name>:In L` / `<Plugin Name>:In R` — audio inputs
-- `<Plugin Name>:Out L` / `<Plugin Name>:Out R` — audio outputs
+## Carla in PipeWire (Patchbay mode)
 
-Persona wires these ports in series to form the effect chain.
+Carla appears as ONE node:
+
+- `Carla:audio-in1` / `Carla:audio-in2` — chain input (Persona links mic here)
+- `Carla:audio-out1` / `Carla:audio-out2` — chain output (Persona links to speakers)
+
+Internal patchbay port naming (used inside `.carxp` connections):
+hardware is `Audio Input:Left/Right` and `Audio Output:Left/Right`; plugin
+clients are named by plugin name (Calf ports `In L`/`Out R` etc., SWH
+AM pitchshifter is mono `Input`/`Output`).
+
+> The older Multi-Client mode (each plugin its own JACK client with
+> `<Plugin Name>:In L` ports) is still handled by Persona's dynamic port
+> discovery, but Patchbay mode is what the doctor configures.
 
 ## Tweaking Plugin Parameters
 
-1. Open Carla
-2. Double-click a plugin to open its GUI
-3. Adjust dials
-4. File → Save to persist settings
+Generated voices ship with curated parameters and work out of the box.
+To fine-tune: open Carla, double-click a plugin, adjust, File → Save.
 
 ### Key Techpriest Dials
 

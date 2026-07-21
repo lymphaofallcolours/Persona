@@ -1,11 +1,31 @@
-import { app, BrowserWindow, ipcMain, globalShortcut } from 'electron'
+import { app, BrowserWindow, ipcMain, globalShortcut, Notification } from 'electron'
 import { join } from 'path'
-import { registerIpcHandlers, stopPolling, activatePreset } from './ipc/handlers'
+import { registerIpcHandlers, stopPolling, activatePreset, disconnectAllLinks, sendToast } from './ipc/handlers'
 import { createTray, updateTrayMenu, destroyTray } from './tray'
 import * as presetStore from './services/presets'
 import * as carla from './services/carla'
 import * as carlaOsc from './services/carlaOsc'
 import * as devicesService from './services/devices'
+import * as virtualMic from './services/virtualMic'
+
+// Explicit app name (dev mode otherwise runs as generic "chrome"/"Electron"):
+// the tray StatusNotifierItem Id derives from it, and Zorin's panel drops
+// items whose Id collides with an existing one (e.g. Discord's
+// chrome_status_icon_1 in dev).
+app.setName('Persona')
+
+// Chromium GPU compositing on old Intel iGPUs under XWayland causes repaint
+// storms that make OTHER windows flicker while Persona is open. The UI is a
+// simple preset grid — software rendering is imperceptible and artifact-free.
+app.disableHardwareAcceleration()
+
+// Run natively on Wayland when the session is Wayland (falls back to X11
+// otherwise). XWayland presentation on Mutter + old Intel makes neighboring
+// windows shimmer even with software rendering — going native bypasses
+// XWayland entirely. Tradeoff: global hotkeys can't be registered on native
+// Wayland (detected below, user informed). Force the old behavior with:
+//   ELECTRON_OZONE_PLATFORM_HINT=x11
+app.commandLine.appendSwitch('ozone-platform-hint', 'auto')
 
 let mainWindow: BrowserWindow | null = null
 let miniPanel: BrowserWindow | null = null
@@ -18,7 +38,7 @@ function createMainWindow(): BrowserWindow {
     minWidth: 360,
     minHeight: 480,
     title: 'Persona',
-    icon: join(__dirname, '../../resources/icons/persona.svg'),
+    icon: join(__dirname, '../../resources/icons/256x256.png'),
     webPreferences: {
       preload: join(__dirname, '../preload/preload.js'),
       contextIsolation: true,
@@ -31,6 +51,7 @@ function createMainWindow(): BrowserWindow {
     if (!isQuitting) {
       e.preventDefault()
       mainWindow?.hide()
+      notifyHiddenToTray()
     }
   })
 
@@ -118,14 +139,23 @@ app.whenReady().then(() => {
   })
 
   // Register global hotkeys (Ctrl+1 through Ctrl+7 for hotbar slots)
+  let hotkeysRegistered = 0
   for (let i = 1; i <= 7; i++) {
-    globalShortcut.register(`CommandOrControl+${i}`, () => {
+    const ok = globalShortcut.register(`CommandOrControl+${i}`, () => {
       const hotbar = presetStore.getHotbarPresets()
       const preset = hotbar.find(p => p.hotbarSlot === i)
       if (preset) {
         activatePreset(preset.id)
       }
     })
+    if (ok) hotkeysRegistered++
+  }
+  // Native Wayland cannot grab global hotkeys — tell the user once instead of
+  // failing silently (hotbar clicks, tray, and the mini panel still work).
+  if (hotkeysRegistered === 0) {
+    setTimeout(() => {
+      sendToast('info', 'Global hotkeys (Ctrl+1-7) are unavailable on native Wayland. Use the hotbar or mini panel — or launch with ELECTRON_OZONE_PLATFORM_HINT=x11 to restore them.')
+    }, 3000)
   }
 
   // Auto-launch Carla on startup
@@ -162,12 +192,36 @@ app.whenReady().then(() => {
 
 })
 
-app.on('before-quit', () => {
+let trayNoticeShown = false
+
+/**
+ * Closing the window hides to tray while audio routing (presets, monitor)
+ * stays fully active — which reads as "I closed it but still hear myself".
+ * Tell the user once per session, via a system notification since the
+ * in-app toast lives in the now-hidden window.
+ */
+function notifyHiddenToTray(): void {
+  if (trayNoticeShown || !Notification.isSupported()) return
+  trayNoticeShown = true
+  new Notification({
+    title: 'Persona is still running',
+    body: 'Audio routing and monitoring stay active in the tray. Right-click the tray icon and choose Quit to stop everything.'
+  }).show()
+}
+
+let cleanupStarted = false
+
+app.on('before-quit', (event) => {
   isQuitting = true
+  if (cleanupStarted) return
+  cleanupStarted = true
+  // Hold the quit until links are disconnected and Carla is down — otherwise
+  // mic→output links outlive the app and keep monitoring the mic forever.
+  event.preventDefault()
   globalShortcut.unregisterAll()
   stopPolling()
-  carla.stop()
   destroyTray()
+  Promise.allSettled([disconnectAllLinks(), virtualMic.destroy(), carla.stop()]).finally(() => app.exit(0))
 })
 
 app.on('window-all-closed', () => {

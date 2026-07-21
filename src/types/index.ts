@@ -66,6 +66,8 @@ export interface PresetConfig {
   presets: Preset[]
   groups: PresetGroup[]
   sessions: SessionProfile[]
+  onboardingComplete?: boolean
+  voicesDir?: string
 }
 
 export interface DeviceSelection {
@@ -95,6 +97,35 @@ export interface PersonaExport {
   exportedAt: string
   presets: Preset[]
   groups: PresetGroup[]
+}
+
+export type SetupCheckStatus = 'ok' | 'warning' | 'error'
+
+export interface SetupCheck {
+  id: string
+  label: string
+  status: SetupCheckStatus
+  detail: string
+  fixable: boolean
+  fixLabel?: string
+}
+
+export interface SetupReport {
+  checks: SetupCheck[]
+  allOk: boolean
+}
+
+export interface SetupFixResult {
+  ok: boolean
+  message: string
+}
+
+export interface VoiceArchetype {
+  id: string
+  name: string
+  description: string
+  color: string
+  pluginNames: string[]
 }
 
 export type ToastType = 'error' | 'warning' | 'info'

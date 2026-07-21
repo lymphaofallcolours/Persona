@@ -7,6 +7,51 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.19.0] — 2026-07-21
+- feat: zero-config onboarding, voice roster, Discord virtual mic, portable config (cde7014)
+
+## [0.18.0] — 2026-07-21
+- feat(voices): portable config paths and configurable voices folder (0532c06)
+
+## [0.17.2] — 2026-07-21
+- fix(presets): duplicate clones the .carxp file instead of sharing it (733f4ec)
+
+## [0.17.1] — 2026-07-21
+- fix(tray): use PNG icons — nativeImage cannot decode SVG (e1a61a2)
+
+## [0.17.0] — 2026-07-21
+- feat(ui): notify once when closing to tray (acee90f)
+
+## [0.16.1] — 2026-07-21
+- fix(ui): run natively on Wayland to stop desktop flicker (8d2c8f0)
+
+## [0.16.0] — 2026-07-21
+- feat(discord): virtual microphone routing (ed5ecf6)
+
+## [0.15.3] — 2026-07-21
+- fix(ui): disable hardware acceleration to stop desktop flicker (2b1a786)
+
+## [0.15.2] — 2026-07-21
+- fix(pipewire): listLinks never parsed real pw-link output (fe82ec5)
+
+## [0.15.1] — 2026-07-21
+- fix(pipewire): never leave mic→output links behind (ba67457)
+
+## [0.15.0] — 2026-07-21
+- feat(voices): expand archetype roster to 15 voices (1b61ba9)
+
+## [0.14.0] — 2026-07-21
+- feat(monitor): warn when the mic is muted at the system level (d97deaf)
+
+## [0.13.1] — 2026-07-21
+- fix(setup): treat flatpak unset-env markers as absent overrides (031d11d)
+
+## [0.13.0] — 2026-07-21
+- feat(ui): setup doctor panel and new voice wizard (f344bae)
+
+## [0.12.0] — 2026-07-21
+- feat(onboarding): setup doctor and voice archetype generator services (6221a3c)
+
 ## [0.11.0] — 2026-07-21
 - feat(recovery): audio state snapshot/restore safety net (7233af9)
 

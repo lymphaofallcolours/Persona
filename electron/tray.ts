@@ -8,7 +8,9 @@ let showWindowCallback: (() => void) | null = null
 let quitCallback: (() => void) | null = null
 
 function getIconPath(): string {
-  return join(__dirname, '../../resources/icons/persona.svg')
+  // Must be a PNG — nativeImage cannot decode SVG, which yields an empty
+  // (invisible) tray icon on Linux.
+  return join(__dirname, '../../resources/icons/32x32.png')
 }
 
 export function createTray(callbacks: {

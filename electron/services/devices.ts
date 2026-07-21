@@ -227,3 +227,20 @@ export async function getDefaultSink(): Promise<string | null> {
     return null
   }
 }
+
+/**
+ * Whether a source (mic) is muted at the system level. A muted source outputs
+ * silence to every consumer — including monitor and preset links — which looks
+ * exactly like "monitoring is broken". Discord's mute button sets this.
+ * Returns null when the state can't be determined (unknown device, pactl error).
+ */
+export async function getSourceMute(deviceName: string): Promise<boolean | null> {
+  try {
+    const output = await exec('pactl', ['get-source-mute', deviceName])
+    if (/Mute:\s*yes/i.test(output)) return true
+    if (/Mute:\s*no/i.test(output)) return false
+    return null
+  } catch {
+    return null
+  }
+}

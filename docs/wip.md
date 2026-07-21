@@ -4,17 +4,54 @@
 
 ## Current Session
 
-**Date:** 2026-07-21
-**Goal:** Audio state safety net before resuming development (post Zorin 18.0→18.1 Discord breakage)
+**Date:** 2026-07-21 (branch `feat/onboarding-doctor`)
+**Goal:** Zero-config onboarding — setup doctor + voice archetype generator
 
 ### Completed This Session
 
-- **Audio snapshot/restore safety net** (see ADR 2026-07-21):
-  - `scripts/audio-snapshot.sh` — captures PipeWire/WirePlumber config + state, pulse config, persona presets, systemd unit enablement, plus diagnostics (pw-dump, pw-link, pactl, package versions)
-  - `scripts/audio-restore.sh` — one-command exact restore (rsync --delete + absence manifest), `--dry-run`/`--yes` flags, restarts PipeWire stack, verified via dry run
-  - Baseline snapshot taken: `20260721-130709-known-good-zorin18.1` (~350K)
-  - `docs/audio-recovery.md` — what persists vs. what's ephemeral, snapshot discipline, "Discord hears me double" diagnosis checklist
-  - System audit: custom config dirs from March are empty (harmless); `filter-chain.service` enabled but inert (stock config, no filters); current node graph verified clean
+- **Setup doctor** (`setup.ts` + `SetupDoctor.tsx`, ADR 2026-07-21): six checks with
+  one-click user-scope fixes (Flathub remote, Carla install, plugin pack extensions
+  pinned to Carla's runtime branch, stale env overrides, Carla2.conf engine config).
+  Auto-opens on first run; header "Setup" button for self-healing later.
+- **Voice archetype generator** (`voices.ts` + `NewVoiceWizard.tsx`): Techpriest /
+  Demon / Vox Caster / Cavern Spirit generated as fully-wired .carxp files with
+  curated parameters into `~/.config/persona/voices/`. Format + parameter indices
+  verified against real Carla projects and extension LV2 TTLs.
+- **Live verification on this machine:** doctor found and repaired the real stale
+  LV2_PATH override from March; generated Techpriest loaded headless in Carla and
+  measurably processed audio (ring-mod sidebands at 440±150 Hz). SWH extension
+  installed (user scope) for AM pitchshifter.
+- Tests: 180 passing (was 128). Docs: carla-setup.md and adding-voices.md rewritten.
+- **Roster expansion:** 15 archetypes total (added Multitudes, Psychic Chorus, Insect,
+  Aquatic People, Elf, Wizard, Astartes, Psychic Sage, Child, Servitor, Wraith).
+  MDA pack added to doctor requirements (MDA Detune for voice-doubling effects).
+  Multitudes (MDA) and Insect (SWH Decimator) verified live headless: signal
+  processed, detune sidebands measured. Gotcha: Carla's Flatpak sandbox cannot
+  read /tmp — generated .carxp files must live under $HOME.
+- **Mic-mute warning:** monitor toggle and preset activation now toast when the
+  source is pactl-muted (Discord mute) — root-caused from live "monitor doesn't
+  work" report where all links were healthy but the N32 source was muted.
+- **Link-leak fixes:** quit now disconnects all links + startup sweeps stale
+  device-to-device links; fixed listLinks parser (never worked on real output).
+- **Desktop flicker fix:** hardware acceleration disabled (Haswell iGPU +
+  XWayland compositing artifact).
+- **Virtual mic for Discord** (ADR 2026-07-21): null sink `persona_virtual_mic`
+  managed by new virtualMic.ts; output device entry; monitor toggle plays
+  processed voice when virtual output selected; docs/discord-setup.md.
+  End-to-end verified headless (processed signal captured at sink monitor).
+- **Duplicate-preset fix:** duplicating now clones the .carxp file (was: both
+  presets shared one file; Carla Save from either overwrote the other's voice).
+  User's spoiled Techpriest/Demon templates restored via regeneration.
+- **Portable config paths + configurable voices folder:** carxpPath/voicesDir
+  stored config-relative (`voices/x.carxp`) or home-relative (`~/...`) on disk,
+  resolved to absolute in memory — `~/.config/persona/` is now copyable across
+  machines/usernames. New Voice wizard shows/changes the destination folder
+  (warns if outside home: Carla sandbox readability).
+- **Desktop fixes along the way:** tray icons for ALL Electron apps were
+  invisible system-wide (Unity-era indicator-application-service hijacked the
+  StatusNotifierWatcher — documented in troubleshooting.md, fixed via autostart
+  override); tray icon must be PNG (nativeImage can't decode SVG); close-to-tray
+  now notifies once per session.
 
 ### In Progress
 
@@ -22,17 +59,23 @@
 
 ### Next Steps
 
-1. **Snapshot discipline:** run `bash scripts/audio-snapshot.sh <label>` before any experiment touching PipeWire config, pactl modules, or audio services
-2. **Manual testing:** kill stale Carla, run `npm run dev`, activate preset with .carxp, verify `pw-link -o | grep -i carla` shows ports
-3. If Carla still has no PipeWire ports: user needs to set Audio Driver = JACK in Carla's settings GUI
-4. Replace placeholder PNG icons with user-provided custom PNGs
-5. Crossfade toggle between presets (needs research)
-6. Discord overlay integration (research needed)
-7. Stream Deck / macro pad support (future)
+1. **Merge `feat/onboarding-doctor`** to main via squash PR after user tries the GUI
+2. **Manual GUI testing:** `npm run dev` → first-run doctor appears → New Voice →
+   activate preset → talk (the non-GUI path is verified; the GUI flow is not)
+3. Fix or delete the stale "test" preset (points at nonexistent `~/Techpriest-patchbay.carxp`)
+4. Cleanup pass from Carla research (see 2026-07-21 findings): crash detection for
+   signal deaths, `isRunning()` matching any Carla, volume applied to all plugins,
+   dead OSC renderer surface, stale E2E test
+5. Snapshot discipline: `bash scripts/audio-snapshot.sh <label>` before audio experiments
+6. Replace placeholder PNG icons; crossfade toggle; Discord overlay; Stream Deck (future)
 
 ---
 
 ## Previous Sessions
+
+### 2026-07-21 — Audio snapshot/restore safety net
+- `scripts/audio-snapshot.sh` / `audio-restore.sh`, baseline `known-good-zorin18.1`,
+  `docs/audio-recovery.md`, system audit clean (committed on main, `fdba00e`)
 
 ### 2026-03-04 — Carla+PipeWire integration fixes (session 7)
 - Dynamic port discovery, async Carla stop, JACK env vars, 128 tests passing

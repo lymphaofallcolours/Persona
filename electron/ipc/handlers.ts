@@ -5,9 +5,13 @@ import * as pipewire from '../services/pipewire'
 import * as devices from '../services/devices'
 import * as carla from '../services/carla'
 import * as carlaOsc from '../services/carlaOsc'
+import * as setup from '../services/setup'
+import * as voices from '../services/voices'
+import * as virtualMic from '../services/virtualMic'
 import { validateCarxp } from '../services/carxp'
 import type { AudioLink } from '../services/pipewire'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { homedir } from 'os'
 import type { AppStatus, AudioDevice, Toast, ToastType, PersonaExport, SessionProfile } from '../../src/types'
 
 let activePresetId: string | null = null
@@ -67,6 +71,31 @@ async function resolveDevices(): Promise<{ inputDevice: string; outputDevice: st
   }
 
   return { inputDevice, outputDevice }
+}
+
+async function warnIfMicMuted(inputDevice: string): Promise<void> {
+  if (await devices.getSourceMute(inputDevice) === true) {
+    sendToast('warning', 'Your microphone is muted at the system level (Discord mute does this) — audio will be silent until you unmute.')
+  }
+}
+
+/**
+ * Monitor links depend on where the preset output goes. Physical output:
+ * clean mic passthrough (hear yourself raw). Virtual mic output: nothing
+ * reaches the speakers by design, so monitoring means listening to the
+ * virtual mic's monitor — the processed voice, exactly what the call hears —
+ * on the default physical output.
+ */
+async function buildMonitorLinksFor(inputDevice: string, outputDevice: string): Promise<AudioLink[]> {
+  if (outputDevice !== virtualMic.VIRTUAL_MIC_NAME) {
+    return pipewire.buildMonitorLinks(inputDevice, outputDevice)
+  }
+  const physical = await devices.getDefaultSink()
+  if (!physical || physical === virtualMic.VIRTUAL_MIC_NAME) {
+    sendToast('warning', 'No physical output found for monitoring.')
+    return []
+  }
+  return pipewire.buildVirtualMicMonitorLinks(virtualMic.VIRTUAL_MIC_NAME, physical)
 }
 
 async function pollDevices(): Promise<void> {
@@ -194,9 +223,13 @@ export async function activatePreset(id: string): Promise<void> {
   activeLinks = links
   activePresetId = id
 
+  if (!isOff) {
+    await warnIfMicMuted(inputDevice)
+  }
+
   // 5. Re-establish monitor links if monitoring is active
   if (micMonitoring) {
-    const monLinks = pipewire.buildMonitorLinks(inputDevice, outputDevice)
+    const monLinks = await buildMonitorLinksFor(inputDevice, outputDevice)
     await pipewire.connectBatch(monLinks)
     monitorLinks = monLinks
   }
@@ -215,8 +248,31 @@ export async function activatePreset(id: string): Promise<void> {
   broadcastStatus()
 }
 
+/**
+ * Disconnect everything this session created. Called on app quit so links
+ * never outlive Persona (a leftover mic→output link keeps monitoring the mic
+ * with no app running to remove it).
+ */
+export async function disconnectAllLinks(): Promise<void> {
+  const links = [...activeLinks, ...monitorLinks]
+  activeLinks = []
+  monitorLinks = []
+  if (links.length > 0) {
+    await pipewire.disconnectBatch(links)
+  }
+}
+
 export function registerIpcHandlers(): void {
   // --- Carla lifecycle ---
+
+  // Sweep mic→output links left by a previous run (crash, or versions that
+  // didn't clean up on quit) — otherwise they monitor the mic forever.
+  pipewire.disconnectStaleDeviceLinks().catch(() => { /* PipeWire not available */ })
+
+  // Create the virtual mic sink (cleans up stale instances from crashed runs)
+  virtualMic.create().then(ok => {
+    if (!ok) sendToast('warning', 'Could not create the Persona Virtual Mic — Discord routing unavailable.')
+  })
 
   carla.onEvents(
     (running, plugins) => {
@@ -383,6 +439,17 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.DEVICES_GET_OUTPUTS, async () => {
     knownOutputs = await devices.getOutputDevices()
+    if (virtualMic.isActive()) {
+      return [
+        ...knownOutputs,
+        {
+          name: virtualMic.VIRTUAL_MIC_NAME,
+          description: 'Persona Virtual Mic (for Discord)',
+          ports: ['playback_FL', 'playback_FR'],
+          type: 'output' as const
+        }
+      ]
+    }
     return knownOutputs
   })
 
@@ -392,6 +459,9 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.DEVICES_SET_SELECTED, (_event, input: string, output: string) => {
     presetStore.setSelectedDevices(input, output)
+    if (output === virtualMic.VIRTUAL_MIC_NAME) {
+      sendToast('info', 'In Discord, set the input device to "Monitor of Persona Virtual Mic". Re-activate your preset to apply the routing.')
+    }
   })
 
   // --- Carla ---
@@ -430,10 +500,11 @@ export function registerIpcHandlers(): void {
       }
       micMonitoring = false
     } else {
-      const links = pipewire.buildMonitorLinks(inputDevice, outputDevice)
+      const links = await buildMonitorLinksFor(inputDevice, outputDevice)
       await pipewire.connectBatch(links)
       monitorLinks = links
       micMonitoring = true
+      await warnIfMicMuted(inputDevice)
     }
 
     broadcastStatus()
@@ -488,6 +559,71 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.OSC_SET_VOLUME, async (_event, pluginId: number, value: number) => {
     await carlaOsc.setVolume(pluginId, value)
+  })
+
+  // --- Setup doctor ---
+
+  ipcMain.handle(IPC.SETUP_RUN_CHECKS, async () => {
+    return setup.runAllChecks()
+  })
+
+  ipcMain.handle(IPC.SETUP_APPLY_FIX, async (_event, checkId: string) => {
+    // Engine config is read by Carla at startup — refuse to edit while running
+    if (checkId === 'engine' && carla.isRunning()) {
+      return { ok: false, message: 'Stop Carla before changing its engine settings.' }
+    }
+    const result = await setup.applyFix(checkId)
+    sendToast(result.ok ? 'info' : 'error', result.message)
+    return result
+  })
+
+  ipcMain.handle(IPC.ONBOARDING_GET, () => {
+    return presetStore.getOnboardingComplete()
+  })
+
+  ipcMain.handle(IPC.ONBOARDING_SET, (_event, complete: boolean) => {
+    presetStore.setOnboardingComplete(complete)
+  })
+
+  // --- Voice archetype generator ---
+
+  ipcMain.handle(IPC.VOICES_GET_ARCHETYPES, () => {
+    return voices.getArchetypes()
+  })
+
+  ipcMain.handle(IPC.VOICES_GET_DIR, () => {
+    return presetStore.getVoicesDir()
+  })
+
+  ipcMain.handle(IPC.VOICES_SET_DIR, (_event, dir: string) => {
+    presetStore.setVoicesDir(dir)
+    if (!dir.startsWith(homedir())) {
+      sendToast('warning', 'That folder is outside your home directory — Carla\'s sandbox may not be able to read voices saved there.')
+    }
+  })
+
+  ipcMain.handle(IPC.DIALOG_OPEN_DIRECTORY, async () => {
+    const win = BrowserWindow.getFocusedWindow()
+    if (!win) return null
+    const result = await dialog.showOpenDialog(win, { properties: ['openDirectory', 'createDirectory'] })
+    if (result.canceled || result.filePaths.length === 0) return null
+    return result.filePaths[0]
+  })
+
+  ipcMain.handle(IPC.VOICES_GENERATE, (_event, archetypeId: string, name: string) => {
+    const { path, archetype } = voices.generateVoice(archetypeId, name, presetStore.getVoicesDir())
+
+    // Self-check: the generated project must pass the same validation used
+    // during preset activation (plugins present + patchbay wired).
+    const validation = validateCarxp(path)
+    if (!validation.hasPlugins || !validation.hasPatchbay) {
+      throw new Error('Generated voice project failed validation')
+    }
+
+    const preset = presetStore.createPreset(name, archetype.color)
+    const updated = presetStore.updatePreset(preset.id, { carxpPath: path })
+    sendToast('info', `Voice "${name}" created`)
+    return updated ?? preset
   })
 
   // --- Status ---

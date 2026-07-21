@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs'
-import { join } from 'path'
+import { readFileSync, writeFileSync, mkdirSync, existsSync, copyFileSync } from 'fs'
+import { join, dirname, basename, extname } from 'path'
 import { homedir } from 'os'
 import { app } from 'electron'
 import { v4 as uuidv4 } from 'uuid'
@@ -7,6 +7,35 @@ import type { Preset, PresetConfig, PresetGroup, PersonaExport, SessionProfile }
 
 const CONFIG_DIR = join(homedir(), '.config', 'persona')
 const CONFIG_FILE = join(CONFIG_DIR, 'presets.json')
+export const DEFAULT_VOICES_DIR = join(CONFIG_DIR, 'voices')
+
+// --- Path portability ---
+// On disk, paths are stored relative when possible so the whole config
+// survives being copied to another machine/username:
+//   'voices/x.carxp'  → relative to the config dir
+//   '~/Voices/x.carxp' → relative to the home dir
+//   '/mnt/...'         → absolute (locations outside home)
+// In memory (everything loadConfig returns), paths are always absolute.
+
+export function toPortablePath(p: string): string {
+  if (p.startsWith(CONFIG_DIR + '/')) return p.slice(CONFIG_DIR.length + 1)
+  const home = homedir()
+  if (p.startsWith(home + '/')) return '~/' + p.slice(home.length + 1)
+  return p
+}
+
+export function resolvePortablePath(p: string): string {
+  if (p.startsWith('~/')) return join(homedir(), p.slice(2))
+  if (!p.startsWith('/')) return join(CONFIG_DIR, p)
+  return p
+}
+
+function resolveConfigPaths(config: PresetConfig): void {
+  if (config.voicesDir) config.voicesDir = resolvePortablePath(config.voicesDir)
+  for (const preset of config.presets) {
+    if (preset.carxpPath) preset.carxpPath = resolvePortablePath(preset.carxpPath)
+  }
+}
 
 function getFactoryPath(): string {
   // In dev: project root. In production: app resources.
@@ -95,12 +124,33 @@ export function loadConfig(): PresetConfig {
   if (JSON.stringify(config) !== JSON.stringify(migrated)) {
     saveConfig(migrated)
   }
+  resolveConfigPaths(migrated)
   return migrated
 }
 
 export function saveConfig(config: PresetConfig): void {
   ensureConfigDir()
-  writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2))
+  // Write the portable form without mutating the caller's (absolute) copy
+  const portable: PresetConfig = {
+    ...config,
+    voicesDir: config.voicesDir ? toPortablePath(config.voicesDir) : undefined,
+    presets: config.presets.map(p =>
+      p.carxpPath ? { ...p, carxpPath: toPortablePath(p.carxpPath) } : p
+    )
+  }
+  writeFileSync(CONFIG_FILE, JSON.stringify(portable, null, 2))
+}
+
+// --- Voices directory (where the New Voice wizard writes .carxp files) ---
+
+export function getVoicesDir(): string {
+  return loadConfig().voicesDir ?? DEFAULT_VOICES_DIR
+}
+
+export function setVoicesDir(dir: string): void {
+  const config = loadConfig()
+  config.voicesDir = dir
+  saveConfig(config)
 }
 
 export function getPresets(): Preset[] {
@@ -145,6 +195,30 @@ export function deletePreset(id: string): boolean {
   return true
 }
 
+/**
+ * Copy a preset's .carxp to a sibling file so the duplicate owns its own
+ * project. Without this, both presets share one file and Carla's Save from
+ * either silently overwrites the other's voice.
+ */
+function duplicateCarxpFile(srcPath: string): string | undefined {
+  try {
+    if (!existsSync(srcPath)) return undefined
+    const dir = dirname(srcPath)
+    const ext = extname(srcPath) || '.carxp'
+    const base = basename(srcPath, ext)
+    let target = join(dir, `${base}-copy${ext}`)
+    let counter = 2
+    while (existsSync(target)) {
+      target = join(dir, `${base}-copy-${counter}${ext}`)
+      counter++
+    }
+    copyFileSync(srcPath, target)
+    return target
+  } catch {
+    return undefined
+  }
+}
+
 export function duplicatePreset(id: string): Preset | undefined {
   const config = loadConfig()
   const source = config.presets.find(p => p.id === id)
@@ -155,6 +229,9 @@ export function duplicatePreset(id: string): Preset | undefined {
     id: uuidv4(),
     name: `${source.name} (Copy)`,
     isFactory: false
+  }
+  if (source.carxpPath) {
+    copy.carxpPath = duplicateCarxpFile(source.carxpPath) ?? source.carxpPath
   }
   config.presets.push(copy)
   saveConfig(config)
@@ -178,6 +255,18 @@ export function setSelectedDevices(input: string, output: string): void {
   const config = loadConfig()
   config.selectedInput = input
   config.selectedOutput = output
+  saveConfig(config)
+}
+
+// --- Onboarding ---
+
+export function getOnboardingComplete(): boolean {
+  return loadConfig().onboardingComplete === true
+}
+
+export function setOnboardingComplete(complete: boolean): void {
+  const config = loadConfig()
+  config.onboardingComplete = complete
   saveConfig(config)
 }
 

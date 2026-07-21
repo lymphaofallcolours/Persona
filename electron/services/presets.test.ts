@@ -23,7 +23,7 @@ vi.mock('os', async () => {
 })
 
 // Now import after mocks are set up
-const { loadConfig, saveConfig, getPresets, createPreset, updatePreset, deletePreset, duplicatePreset, reorderPresets, getGroups, createGroup, updateGroup, deleteGroup, getHotbarPresets, exportPresets, importPresets, getSessions, saveSession, getSession, updateSessionName, deleteSession } = await import('./presets')
+const { loadConfig, saveConfig, getPresets, createPreset, updatePreset, deletePreset, duplicatePreset, reorderPresets, getGroups, createGroup, updateGroup, deleteGroup, getHotbarPresets, exportPresets, importPresets, getSessions, saveSession, getSession, updateSessionName, deleteSession, toPortablePath, resolvePortablePath, getVoicesDir, setVoicesDir, DEFAULT_VOICES_DIR } = await import('./presets')
 
 describe('PresetStore', () => {
   beforeEach(() => {
@@ -89,8 +89,28 @@ describe('PresetStore', () => {
     expect(copy).toBeTruthy()
     expect(copy!.id).not.toBe(original.id)
     expect(copy!.name).toBe('Original (Copy)')
+    // Source file doesn't exist — path carried over unchanged
     expect(copy!.carxpPath).toBe('/path/to/test.carxp')
     expect(copy!.isFactory).toBe(false)
+  })
+
+  it('copies the .carxp file so the duplicate owns its own project', () => {
+    const voicesDir = join(tempDir, 'voices')
+    mkdirSync(voicesDir, { recursive: true })
+    const srcPath = join(voicesDir, 'myvoice.carxp')
+    writeFileSync(srcPath, '<CARLA-PROJECT>original</CARLA-PROJECT>')
+
+    const original = createPreset('My Voice', '#222')
+    updatePreset(original.id, { carxpPath: srcPath })
+
+    const copy = duplicatePreset(original.id)
+    expect(copy!.carxpPath).toBe(join(voicesDir, 'myvoice-copy.carxp'))
+    expect(copy!.carxpPath).not.toBe(srcPath)
+    expect(readFileSync(copy!.carxpPath!, 'utf-8')).toBe('<CARLA-PROJECT>original</CARLA-PROJECT>')
+
+    // Second duplicate gets a numbered file, not an overwrite
+    const copy2 = duplicatePreset(original.id)
+    expect(copy2!.carxpPath).toBe(join(voicesDir, 'myvoice-copy-2.carxp'))
   })
 
   it('reorders presets by ID list', () => {
@@ -100,6 +120,44 @@ describe('PresetStore', () => {
 
     const reordered = getPresets()
     expect(reordered.map(p => p.id)).toEqual(reversed)
+  })
+})
+
+describe('Portable paths', () => {
+  const configDir = join(tempDir, '.config', 'persona')
+
+  it('round-trips config-dir and home paths through portable form', () => {
+    expect(toPortablePath(join(configDir, 'voices', 'x.carxp'))).toBe('voices/x.carxp')
+    expect(toPortablePath(join(tempDir, 'Music', 'x.carxp'))).toBe('~/Music/x.carxp')
+    expect(toPortablePath('/mnt/usb/x.carxp')).toBe('/mnt/usb/x.carxp')
+
+    expect(resolvePortablePath('voices/x.carxp')).toBe(join(configDir, 'voices', 'x.carxp'))
+    expect(resolvePortablePath('~/Music/x.carxp')).toBe(join(tempDir, 'Music', 'x.carxp'))
+    expect(resolvePortablePath('/mnt/usb/x.carxp')).toBe('/mnt/usb/x.carxp')
+  })
+
+  it('stores carxpPath relative on disk but returns it absolute', () => {
+    const absPath = join(configDir, 'voices', 'myvoice.carxp')
+    const preset = createPreset('Portable', '#333')
+    updatePreset(preset.id, { carxpPath: absPath })
+
+    const rawOnDisk = JSON.parse(readFileSync(join(configDir, 'presets.json'), 'utf-8'))
+    const stored = rawOnDisk.presets.find((p: any) => p.name === 'Portable')
+    expect(stored.carxpPath).toBe('voices/myvoice.carxp')
+
+    const loaded = getPresets().find(p => p.name === 'Portable')
+    expect(loaded!.carxpPath).toBe(absPath)
+  })
+
+  it('voicesDir defaults, persists, and round-trips portably', () => {
+    expect(getVoicesDir()).toBe(DEFAULT_VOICES_DIR)
+
+    const custom = join(tempDir, 'MyVoices')
+    setVoicesDir(custom)
+    expect(getVoicesDir()).toBe(custom)
+
+    const rawOnDisk = JSON.parse(readFileSync(join(configDir, 'presets.json'), 'utf-8'))
+    expect(rawOnDisk.voicesDir).toBe('~/MyVoices')
   })
 })
 

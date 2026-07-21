@@ -39,6 +39,19 @@
   managed by new virtualMic.ts; output device entry; monitor toggle plays
   processed voice when virtual output selected; docs/discord-setup.md.
   End-to-end verified headless (processed signal captured at sink monitor).
+- **Duplicate-preset fix:** duplicating now clones the .carxp file (was: both
+  presets shared one file; Carla Save from either overwrote the other's voice).
+  User's spoiled Techpriest/Demon templates restored via regeneration.
+- **Portable config paths + configurable voices folder:** carxpPath/voicesDir
+  stored config-relative (`voices/x.carxp`) or home-relative (`~/...`) on disk,
+  resolved to absolute in memory — `~/.config/persona/` is now copyable across
+  machines/usernames. New Voice wizard shows/changes the destination folder
+  (warns if outside home: Carla sandbox readability).
+- **Desktop fixes along the way:** tray icons for ALL Electron apps were
+  invisible system-wide (Unity-era indicator-application-service hijacked the
+  StatusNotifierWatcher — documented in troubleshooting.md, fixed via autostart
+  override); tray icon must be PNG (nativeImage can't decode SVG); close-to-tray
+  now notifies once per session.
 
 ### In Progress
 

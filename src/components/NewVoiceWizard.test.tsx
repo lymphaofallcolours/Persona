@@ -20,7 +20,10 @@ const archetypes: VoiceArchetype[] = [
 const mockPersona = {
   voices: {
     getArchetypes: vi.fn().mockResolvedValue(archetypes),
-    generate: vi.fn().mockResolvedValue({ id: 'p1', name: 'Techpriest', color: '#b45309', isFactory: false })
+    generate: vi.fn().mockResolvedValue({ id: 'p1', name: 'Techpriest', color: '#b45309', isFactory: false }),
+    getDir: vi.fn().mockResolvedValue('/home/user/.config/persona/voices'),
+    setDir: vi.fn().mockResolvedValue(undefined),
+    pickDir: vi.fn().mockResolvedValue(null)
   }
 }
 
@@ -78,6 +81,27 @@ describe('NewVoiceWizard', () => {
 
     const create = screen.getByText('Create Voice') as HTMLButtonElement
     expect(create.disabled).toBe(true)
+  })
+
+  it('shows the voices folder and changes it via the picker', async () => {
+    mockPersona.voices.pickDir.mockResolvedValueOnce('/home/user/MyVoices')
+    render(<NewVoiceWizard onCreated={() => {}} onCancel={() => {}} />)
+
+    await screen.findByText(/Saving to:/)
+    fireEvent.click(screen.getByText('Change...'))
+
+    await waitFor(() => {
+      expect(mockPersona.voices.setDir).toHaveBeenCalledWith('/home/user/MyVoices')
+    })
+  })
+
+  it('keeps the folder when the picker is cancelled', async () => {
+    render(<NewVoiceWizard onCreated={() => {}} onCancel={() => {}} />)
+    await screen.findByText(/Saving to:/)
+    fireEvent.click(screen.getByText('Change...'))
+
+    await waitFor(() => expect(mockPersona.voices.pickDir).toHaveBeenCalled())
+    expect(mockPersona.voices.setDir).not.toHaveBeenCalled()
   })
 
   it('cancels without generating', async () => {

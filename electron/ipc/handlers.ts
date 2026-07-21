@@ -11,6 +11,7 @@ import * as virtualMic from '../services/virtualMic'
 import { validateCarxp } from '../services/carxp'
 import type { AudioLink } from '../services/pipewire'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { homedir } from 'os'
 import type { AppStatus, AudioDevice, Toast, ToastType, PersonaExport, SessionProfile } from '../../src/types'
 
 let activePresetId: string | null = null
@@ -590,8 +591,27 @@ export function registerIpcHandlers(): void {
     return voices.getArchetypes()
   })
 
+  ipcMain.handle(IPC.VOICES_GET_DIR, () => {
+    return presetStore.getVoicesDir()
+  })
+
+  ipcMain.handle(IPC.VOICES_SET_DIR, (_event, dir: string) => {
+    presetStore.setVoicesDir(dir)
+    if (!dir.startsWith(homedir())) {
+      sendToast('warning', 'That folder is outside your home directory — Carla\'s sandbox may not be able to read voices saved there.')
+    }
+  })
+
+  ipcMain.handle(IPC.DIALOG_OPEN_DIRECTORY, async () => {
+    const win = BrowserWindow.getFocusedWindow()
+    if (!win) return null
+    const result = await dialog.showOpenDialog(win, { properties: ['openDirectory', 'createDirectory'] })
+    if (result.canceled || result.filePaths.length === 0) return null
+    return result.filePaths[0]
+  })
+
   ipcMain.handle(IPC.VOICES_GENERATE, (_event, archetypeId: string, name: string) => {
-    const { path, archetype } = voices.generateVoice(archetypeId, name)
+    const { path, archetype } = voices.generateVoice(archetypeId, name, presetStore.getVoicesDir())
 
     // Self-check: the generated project must pass the same validation used
     // during preset activation (plugins present + patchbay wired).

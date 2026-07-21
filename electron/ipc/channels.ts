@@ -64,6 +64,9 @@ export const IPC = {
   // Voice archetype generator
   VOICES_GET_ARCHETYPES: 'voices:get-archetypes',
   VOICES_GENERATE: 'voices:generate',
+  VOICES_GET_DIR: 'voices:get-dir',
+  VOICES_SET_DIR: 'voices:set-dir',
+  DIALOG_OPEN_DIRECTORY: 'dialog:open-directory',
 
   // Status
   STATUS_GET: 'status:get',

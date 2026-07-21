@@ -12,10 +12,20 @@ export function NewVoiceWizard({ onCreated, onCancel }: NewVoiceWizardProps) {
   const [name, setName] = useState('')
   const [nameTouched, setNameTouched] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [voicesDir, setVoicesDir] = useState('')
 
   useEffect(() => {
     window.persona.voices.getArchetypes().then(setArchetypes)
+    window.persona.voices.getDir().then(setVoicesDir)
   }, [])
+
+  const handleChangeDir = async () => {
+    const dir = await window.persona.voices.pickDir()
+    if (dir) {
+      await window.persona.voices.setDir(dir)
+      setVoicesDir(dir)
+    }
+  }
 
   const handleSelect = (archetype: VoiceArchetype) => {
     setSelectedId(archetype.id)
@@ -90,6 +100,16 @@ export function NewVoiceWizard({ onCreated, onCancel }: NewVoiceWizardProps) {
               className="w-full bg-zinc-800 border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-zinc-500"
             />
           </div>
+        </div>
+
+        <div className="px-4 pt-2 flex items-center gap-2 text-[10px] text-zinc-600">
+          <span className="truncate" title={voicesDir}>Saving to: {voicesDir}</span>
+          <button
+            onClick={handleChangeDir}
+            className="shrink-0 underline hover:text-zinc-400"
+          >
+            Change...
+          </button>
         </div>
 
         <div className="px-4 py-3 border-t border-zinc-800 flex items-center justify-end gap-2">

@@ -67,6 +67,7 @@ export interface PresetConfig {
   groups: PresetGroup[]
   sessions: SessionProfile[]
   onboardingComplete?: boolean
+  voicesDir?: string
 }
 
 export interface DeviceSelection {

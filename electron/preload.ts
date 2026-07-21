@@ -82,6 +82,9 @@ export interface PersonaAPI {
   voices: {
     getArchetypes(): Promise<VoiceArchetype[]>
     generate(archetypeId: string, name: string): Promise<Preset>
+    getDir(): Promise<string>
+    setDir(dir: string): Promise<void>
+    pickDir(): Promise<string | null>
   }
 }
 
@@ -173,7 +176,10 @@ const api: PersonaAPI = {
   },
   voices: {
     getArchetypes: () => ipcRenderer.invoke(IPC.VOICES_GET_ARCHETYPES),
-    generate: (archetypeId, name) => ipcRenderer.invoke(IPC.VOICES_GENERATE, archetypeId, name)
+    generate: (archetypeId, name) => ipcRenderer.invoke(IPC.VOICES_GENERATE, archetypeId, name),
+    getDir: () => ipcRenderer.invoke(IPC.VOICES_GET_DIR),
+    setDir: (dir) => ipcRenderer.invoke(IPC.VOICES_SET_DIR, dir),
+    pickDir: () => ipcRenderer.invoke(IPC.DIALOG_OPEN_DIRECTORY)
   }
 }
 

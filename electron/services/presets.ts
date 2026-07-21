@@ -7,6 +7,35 @@ import type { Preset, PresetConfig, PresetGroup, PersonaExport, SessionProfile }
 
 const CONFIG_DIR = join(homedir(), '.config', 'persona')
 const CONFIG_FILE = join(CONFIG_DIR, 'presets.json')
+export const DEFAULT_VOICES_DIR = join(CONFIG_DIR, 'voices')
+
+// --- Path portability ---
+// On disk, paths are stored relative when possible so the whole config
+// survives being copied to another machine/username:
+//   'voices/x.carxp'  → relative to the config dir
+//   '~/Voices/x.carxp' → relative to the home dir
+//   '/mnt/...'         → absolute (locations outside home)
+// In memory (everything loadConfig returns), paths are always absolute.
+
+export function toPortablePath(p: string): string {
+  if (p.startsWith(CONFIG_DIR + '/')) return p.slice(CONFIG_DIR.length + 1)
+  const home = homedir()
+  if (p.startsWith(home + '/')) return '~/' + p.slice(home.length + 1)
+  return p
+}
+
+export function resolvePortablePath(p: string): string {
+  if (p.startsWith('~/')) return join(homedir(), p.slice(2))
+  if (!p.startsWith('/')) return join(CONFIG_DIR, p)
+  return p
+}
+
+function resolveConfigPaths(config: PresetConfig): void {
+  if (config.voicesDir) config.voicesDir = resolvePortablePath(config.voicesDir)
+  for (const preset of config.presets) {
+    if (preset.carxpPath) preset.carxpPath = resolvePortablePath(preset.carxpPath)
+  }
+}
 
 function getFactoryPath(): string {
   // In dev: project root. In production: app resources.
@@ -95,12 +124,33 @@ export function loadConfig(): PresetConfig {
   if (JSON.stringify(config) !== JSON.stringify(migrated)) {
     saveConfig(migrated)
   }
+  resolveConfigPaths(migrated)
   return migrated
 }
 
 export function saveConfig(config: PresetConfig): void {
   ensureConfigDir()
-  writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2))
+  // Write the portable form without mutating the caller's (absolute) copy
+  const portable: PresetConfig = {
+    ...config,
+    voicesDir: config.voicesDir ? toPortablePath(config.voicesDir) : undefined,
+    presets: config.presets.map(p =>
+      p.carxpPath ? { ...p, carxpPath: toPortablePath(p.carxpPath) } : p
+    )
+  }
+  writeFileSync(CONFIG_FILE, JSON.stringify(portable, null, 2))
+}
+
+// --- Voices directory (where the New Voice wizard writes .carxp files) ---
+
+export function getVoicesDir(): string {
+  return loadConfig().voicesDir ?? DEFAULT_VOICES_DIR
+}
+
+export function setVoicesDir(dir: string): void {
+  const config = loadConfig()
+  config.voicesDir = dir
+  saveConfig(config)
 }
 
 export function getPresets(): Preset[] {

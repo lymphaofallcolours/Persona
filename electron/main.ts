@@ -8,6 +8,12 @@ import * as carlaOsc from './services/carlaOsc'
 import * as devicesService from './services/devices'
 import * as virtualMic from './services/virtualMic'
 
+// Explicit app name (dev mode otherwise runs as generic "chrome"/"Electron"):
+// the tray StatusNotifierItem Id derives from it, and Zorin's panel drops
+// items whose Id collides with an existing one (e.g. Discord's
+// chrome_status_icon_1 in dev).
+app.setName('Persona')
+
 // Chromium GPU compositing on old Intel iGPUs under XWayland causes repaint
 // storms that make OTHER windows flicker while Persona is open. The UI is a
 // simple preset grid — software rendering is imperceptible and artifact-free.

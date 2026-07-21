@@ -7,6 +7,9 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.15.1] — 2026-07-21
+- fix(pipewire): never leave mic→output links behind (ba67457)
+
 ## [0.15.0] — 2026-07-21
 - feat(voices): expand archetype roster to 15 voices (1b61ba9)
 

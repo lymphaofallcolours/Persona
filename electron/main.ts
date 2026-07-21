@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, globalShortcut } from 'electron'
 import { join } from 'path'
-import { registerIpcHandlers, stopPolling, activatePreset } from './ipc/handlers'
+import { registerIpcHandlers, stopPolling, activatePreset, disconnectAllLinks } from './ipc/handlers'
 import { createTray, updateTrayMenu, destroyTray } from './tray'
 import * as presetStore from './services/presets'
 import * as carla from './services/carla'
@@ -162,12 +162,19 @@ app.whenReady().then(() => {
 
 })
 
-app.on('before-quit', () => {
+let cleanupStarted = false
+
+app.on('before-quit', (event) => {
   isQuitting = true
+  if (cleanupStarted) return
+  cleanupStarted = true
+  // Hold the quit until links are disconnected and Carla is down — otherwise
+  // mic→output links outlive the app and keep monitoring the mic forever.
+  event.preventDefault()
   globalShortcut.unregisterAll()
   stopPolling()
-  carla.stop()
   destroyTray()
+  Promise.allSettled([disconnectAllLinks(), carla.stop()]).finally(() => app.exit(0))
 })
 
 app.on('window-all-closed', () => {

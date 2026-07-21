@@ -76,6 +76,25 @@ export async function disconnectBatch(links: AudioLink[]): Promise<void> {
 }
 
 /**
+ * Disconnect any direct device-to-device links (alsa_input capture →
+ * alsa_output playback). Only Persona creates these — applications use
+ * streams and WirePlumber never links hardware straight to hardware — so any
+ * found at startup are stale leftovers from a previous run (link tracking is
+ * in-memory; a crash or plain quit leaves them in the graph, permanently
+ * monitoring the mic). Returns how many were removed.
+ */
+export async function disconnectStaleDeviceLinks(): Promise<number> {
+  const links = await listLinks()
+  const stale = links.filter(
+    l => /^alsa_input\.[^:]+:capture_/.test(l.source) && /^alsa_output\.[^:]+:playback_/.test(l.destination)
+  )
+  if (stale.length > 0) {
+    await disconnectBatch(stale)
+  }
+  return stale.length
+}
+
+/**
  * Build direct mic-to-output links for monitoring (hearing yourself).
  */
 export function buildMonitorLinks(

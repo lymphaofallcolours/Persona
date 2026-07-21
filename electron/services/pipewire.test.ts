@@ -1,8 +1,68 @@
-import { describe, it, expect } from 'vitest'
-import { buildPresetLinks, buildMonitorLinks } from './pipewire'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+vi.mock('child_process', () => ({
+  execFile: vi.fn()
+}))
+
+import { execFile } from 'child_process'
+import { buildPresetLinks, buildMonitorLinks, disconnectStaleDeviceLinks } from './pipewire'
+
+const mockExecFile = vi.mocked(execFile)
 
 const MIC = 'alsa_input.test-mic'
 const SINK = 'alsa_output.test-headphones'
+
+beforeEach(() => {
+  vi.clearAllMocks()
+})
+
+describe('disconnectStaleDeviceLinks', () => {
+  // Realistic pw-link -l output: each port lists peers in both directions
+  const LINK_OUTPUT = [
+    'alsa_output.pci-0000.analog-stereo:playback_FL',
+    '  |<- speech-dispatcher-dummy:output_FL',
+    '  |<- alsa_input.pci-0000.analog-stereo:capture_FL',
+    'alsa_input.pci-0000.analog-stereo:capture_FL',
+    '  |-> alsa_output.pci-0000.analog-stereo:playback_FL',
+    'alsa_input.pci-0000.analog-stereo:capture_FR',
+    '  |-> alsa_output.pci-0000.analog-stereo:playback_FR',
+    'speech-dispatcher-dummy:output_FL',
+    '  |-> discord_capture:input_FL',
+    'alsa_input.usb-mic:capture_FL',
+    '  |-> Calf Compressor:In L'
+  ].join('\n')
+
+  function calls(): string[][] {
+    return mockExecFile.mock.calls.map(c => c[1] as string[])
+  }
+
+  it('disconnects only direct mic→output links, leaving streams and Carla links alone', async () => {
+    mockExecFile.mockImplementation((_cmd: any, args: any, _opts: any, callback: any) => {
+      callback(null, (args as string[])[0] === '-l' ? LINK_OUTPUT : '')
+      return {} as any
+    })
+
+    const removed = await disconnectStaleDeviceLinks()
+    expect(removed).toBe(2)
+
+    const disconnects = calls().filter(args => args[0] === '-d')
+    expect(disconnects).toEqual([
+      ['-d', 'alsa_input.pci-0000.analog-stereo:capture_FL', 'alsa_output.pci-0000.analog-stereo:playback_FL'],
+      ['-d', 'alsa_input.pci-0000.analog-stereo:capture_FR', 'alsa_output.pci-0000.analog-stereo:playback_FR']
+    ])
+  })
+
+  it('does nothing when no direct device links exist', async () => {
+    mockExecFile.mockImplementation((_cmd: any, args: any, _opts: any, callback: any) => {
+      callback(null, (args as string[])[0] === '-l' ? 'speech-dispatcher-dummy:output_FL\n  |-> discord_capture:input_FL\n' : '')
+      return {} as any
+    })
+
+    const removed = await disconnectStaleDeviceLinks()
+    expect(removed).toBe(0)
+    expect(calls().filter(args => args[0] === '-d')).toHaveLength(0)
+  })
+})
 
 describe('buildPresetLinks', () => {
   it('returns empty array for Off preset', () => {

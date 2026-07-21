@@ -227,8 +227,26 @@ export async function activatePreset(id: string): Promise<void> {
   broadcastStatus()
 }
 
+/**
+ * Disconnect everything this session created. Called on app quit so links
+ * never outlive Persona (a leftover mic→output link keeps monitoring the mic
+ * with no app running to remove it).
+ */
+export async function disconnectAllLinks(): Promise<void> {
+  const links = [...activeLinks, ...monitorLinks]
+  activeLinks = []
+  monitorLinks = []
+  if (links.length > 0) {
+    await pipewire.disconnectBatch(links)
+  }
+}
+
 export function registerIpcHandlers(): void {
   // --- Carla lifecycle ---
+
+  // Sweep mic→output links left by a previous run (crash, or versions that
+  // didn't clean up on quit) — otherwise they monitor the mic forever.
+  pipewire.disconnectStaleDeviceLinks().catch(() => { /* PipeWire not available */ })
 
   carla.onEvents(
     (running, plugins) => {

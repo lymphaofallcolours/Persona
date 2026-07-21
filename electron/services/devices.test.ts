@@ -45,6 +45,28 @@ beforeEach(() => {
   execResults = {}
 })
 
+describe('getSourceMute', () => {
+  it('detects a muted source', async () => {
+    mockExecResult('Mute: yes\n')
+    const { getSourceMute } = await import('./devices')
+    expect(await getSourceMute('alsa_input.usb-mic')).toBe(true)
+  })
+
+  it('detects an unmuted source', async () => {
+    mockExecResult('Mute: no\n')
+    const { getSourceMute } = await import('./devices')
+    expect(await getSourceMute('alsa_input.usb-mic')).toBe(false)
+  })
+
+  it('returns null on pactl failure or unparseable output', async () => {
+    const { getSourceMute } = await import('./devices')
+    mockExecError()
+    expect(await getSourceMute('nope')).toBeNull()
+    mockExecResult('garbage')
+    expect(await getSourceMute('nope')).toBeNull()
+  })
+})
+
 describe('getInputDevices', () => {
   it('parses pw-link -o output into input devices', async () => {
     mockExecResult(

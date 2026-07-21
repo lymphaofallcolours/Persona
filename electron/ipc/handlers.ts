@@ -71,6 +71,12 @@ async function resolveDevices(): Promise<{ inputDevice: string; outputDevice: st
   return { inputDevice, outputDevice }
 }
 
+async function warnIfMicMuted(inputDevice: string): Promise<void> {
+  if (await devices.getSourceMute(inputDevice) === true) {
+    sendToast('warning', 'Your microphone is muted at the system level (Discord mute does this) — audio will be silent until you unmute.')
+  }
+}
+
 async function pollDevices(): Promise<void> {
   try {
     const [inputs, outputs] = await Promise.all([
@@ -195,6 +201,10 @@ export async function activatePreset(id: string): Promise<void> {
 
   activeLinks = links
   activePresetId = id
+
+  if (!isOff) {
+    await warnIfMicMuted(inputDevice)
+  }
 
   // 5. Re-establish monitor links if monitoring is active
   if (micMonitoring) {
@@ -436,6 +446,7 @@ export function registerIpcHandlers(): void {
       await pipewire.connectBatch(links)
       monitorLinks = links
       micMonitoring = true
+      await warnIfMicMuted(inputDevice)
     }
 
     broadcastStatus()

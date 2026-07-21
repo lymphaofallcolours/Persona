@@ -7,6 +7,9 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.14.0] — 2026-07-21
+- feat(monitor): warn when the mic is muted at the system level (d97deaf)
+
 ## [0.13.1] — 2026-07-21
 - fix(setup): treat flatpak unset-env markers as absent overrides (031d11d)
 

@@ -7,6 +7,9 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.15.2] — 2026-07-21
+- fix(pipewire): listLinks never parsed real pw-link output (fe82ec5)
+
 ## [0.15.1] — 2026-07-21
 - fix(pipewire): never leave mic→output links behind (ba67457)
 

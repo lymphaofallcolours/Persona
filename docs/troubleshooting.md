@@ -89,3 +89,33 @@ sudo apt update && sudo apt install pipewire pipewire-pulse wireplumber
 4. Click a preset button or use mic-monitor-toggle hotkey
 
 Easy Effects is **not** set to autostart (user preference).
+
+## No tray icon (Persona, Discord, and other Electron apps)
+
+**Symptom:** Persona (and every Chromium/Electron app) shows no tray icon, while
+Steam and legacy indicator apps do.
+
+**Cause:** the Unity-era `indicator-application-service` daemon (from the
+`indicator-application` package, autostarted via `/etc/xdg/autostart/`) grabs
+the `org.kde.StatusNotifierWatcher` DBus name at login before Zorin's own
+`zorin-appindicator` GNOME extension can. That daemon accepts Chromium-style
+tray items but cannot render their icons (it doesn't resolve the
+`IconThemePath` mechanism Chromium uses), so they silently vanish.
+
+**Diagnosis:** `busctl --user list | grep StatusNotifierWatcher` — if the owner
+is `indicator-appli...` instead of `gnome-shell`, this is the problem.
+
+**Fix (user-level, reversible):**
+```bash
+mkdir -p ~/.config/autostart
+printf '[Desktop Entry]\nType=Application\nName=Indicator Application\nHidden=true\n' \
+  > ~/.config/autostart/indicator-application.desktop
+pkill -f indicator-application-service
+gnome-extensions disable zorin-appindicator@zorinos.com && sleep 1 && \
+  gnome-extensions enable zorin-appindicator@zorinos.com
+```
+All tray icons (including Discord's) reappear. Revert by deleting the override
+file and logging out/in.
+
+**Related app-side gotcha:** tray icons must be PNG — Electron's `nativeImage`
+silently produces an empty image from SVG paths.

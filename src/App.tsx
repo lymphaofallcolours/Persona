@@ -29,7 +29,9 @@ function MainApp() {
     carlaPlugins: [],
     linksActive: 0,
     micMonitoring: false,
-    oscConnected: false
+    oscConnected: false,
+    routeMode: 'speakers',
+    discordCapture: 'none'
   })
   const [sessions, setSessions] = useState<SessionProfile[]>([])
   const [sessionMenuOpen, setSessionMenuOpen] = useState(false)

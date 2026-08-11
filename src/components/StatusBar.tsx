@@ -28,6 +28,39 @@ export function StatusBar({ status, presets }: StatusBarProps) {
       </span>
 
       <span className="flex items-center gap-3">
+        {status.routeMode === 'discord' && (
+          <span
+            title={
+              status.discordCapture === 'virtual'
+                ? 'A call app is hearing the Persona Virtual Mic'
+                : status.discordCapture === 'raw'
+                  ? 'A call app is capturing your RAW mic — activate a voice to route it'
+                  : 'No call app is capturing audio right now'
+            }
+            className={`flex items-center gap-1 px-1.5 py-0.5 rounded ${
+              status.discordCapture === 'virtual'
+                ? 'bg-green-900/40 text-green-400'
+                : status.discordCapture === 'raw'
+                  ? 'bg-amber-900/40 text-amber-400'
+                  : 'text-zinc-600'
+            }`}
+          >
+            <span
+              className={`inline-block w-2 h-2 rounded-full ${
+                status.discordCapture === 'virtual'
+                  ? 'bg-green-500'
+                  : status.discordCapture === 'raw'
+                    ? 'bg-amber-400'
+                    : 'bg-zinc-600'
+              }`}
+            />
+            {status.discordCapture === 'virtual'
+              ? 'Call: Persona mic'
+              : status.discordCapture === 'raw'
+                ? 'Call: RAW mic'
+                : 'No call'}
+          </span>
+        )}
         <button
           onClick={handleMonitorToggle}
           title={status.micMonitoring ? 'Stop hearing your mic' : 'Hear your mic through output (for testing voices)'}

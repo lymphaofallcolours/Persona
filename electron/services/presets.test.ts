@@ -23,7 +23,7 @@ vi.mock('os', async () => {
 })
 
 // Now import after mocks are set up
-const { loadConfig, saveConfig, getPresets, createPreset, updatePreset, deletePreset, duplicatePreset, reorderPresets, getGroups, createGroup, updateGroup, deleteGroup, getHotbarPresets, exportPresets, importPresets, getSessions, saveSession, getSession, updateSessionName, deleteSession, toPortablePath, resolvePortablePath, getVoicesDir, setVoicesDir, DEFAULT_VOICES_DIR } = await import('./presets')
+const { loadConfig, saveConfig, getPresets, createPreset, updatePreset, deletePreset, duplicatePreset, reorderPresets, getGroups, createGroup, updateGroup, deleteGroup, getHotbarPresets, exportPresets, importPresets, getSessions, saveSession, getSession, updateSessionName, deleteSession, toPortablePath, resolvePortablePath, getVoicesDir, setVoicesDir, DEFAULT_VOICES_DIR, getRouteMode, setRouteMode } = await import('./presets')
 
 describe('PresetStore', () => {
   beforeEach(() => {
@@ -120,6 +120,26 @@ describe('PresetStore', () => {
 
     const reordered = getPresets()
     expect(reordered.map(p => p.id)).toEqual(reversed)
+  })
+})
+
+describe('Route mode', () => {
+  it('defaults to speakers and persists changes', () => {
+    expect(getRouteMode()).toBe('speakers')
+    setRouteMode('discord')
+    expect(getRouteMode()).toBe('discord')
+    expect(loadConfig().routeMode).toBe('discord')
+  })
+
+  it('migrates the superseded virtual-mic output selection', () => {
+    const config = loadConfig()
+    config.selectedOutput = 'persona_virtual_mic'
+    delete (config as any).routeMode
+    saveConfig(config)
+
+    const migrated = loadConfig()
+    expect(migrated.selectedOutput).toBe('auto')
+    expect(migrated.routeMode).toBe('discord')
   })
 })
 

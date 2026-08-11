@@ -42,6 +42,10 @@ export const IPC = {
   MIC_MONITOR_TOGGLE: 'mic-monitor:toggle',
   MIC_MONITOR_GET: 'mic-monitor:get',
 
+  // Routing mode (speakers vs Discord virtual mic)
+  ROUTE_MODE_GET: 'route-mode:get',
+  ROUTE_MODE_SET: 'route-mode:set',
+
   // Dialog
   DIALOG_OPEN_FILE: 'dialog:open-file',
   DIALOG_SAVE_FILE: 'dialog:save-file',

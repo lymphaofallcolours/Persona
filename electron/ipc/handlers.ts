@@ -12,7 +12,7 @@ import { validateCarxp } from '../services/carxp'
 import type { AudioLink } from '../services/pipewire'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { homedir } from 'os'
-import type { AppStatus, AudioDevice, Toast, ToastType, PersonaExport, SessionProfile } from '../../src/types'
+import type { AppStatus, AudioDevice, Toast, ToastType, PersonaExport, SessionProfile, RouteMode, CaptureState } from '../../src/types'
 
 let activePresetId: string | null = null
 let activeLinks: AudioLink[] = []
@@ -24,6 +24,7 @@ let carlaRunning = false
 let carlaPlugins: string[] = []
 let currentCarxpPath: string | undefined = undefined
 let pollInterval: ReturnType<typeof setInterval> | null = null
+let lastCaptureState: CaptureState = 'none'
 
 function broadcast(channel: string, data: unknown): void {
   for (const win of BrowserWindow.getAllWindows()) {
@@ -38,7 +39,9 @@ function getStatus(): AppStatus {
     carlaPlugins,
     linksActive: activeLinks.length,
     micMonitoring,
-    oscConnected: carlaOsc.isConnected()
+    oscConnected: carlaOsc.isConnected(),
+    routeMode: presetStore.getRouteMode(),
+    discordCapture: lastCaptureState
   }
 }
 
@@ -62,7 +65,17 @@ async function resolveDevices(): Promise<{ inputDevice: string; outputDevice: st
   let outputDevice = output
 
   if (input === 'auto') {
-    const defaultSource = await devices.getDefaultSource()
+    let defaultSource = await devices.getDefaultSource()
+    // While adoption is engaged the system default IS the virtual mic;
+    // feeding the chain from it would be circular (and silent). Resolve to
+    // the real microphone it displaced instead.
+    if (defaultSource === virtualMic.VIRTUAL_MIC_NAME) {
+      defaultSource = virtualMic.getSavedDefaultSource()
+      if (!defaultSource) {
+        const inputs = await devices.getInputDevices()
+        defaultSource = inputs[0]?.name ?? null
+      }
+    }
     if (defaultSource) inputDevice = defaultSource
   }
   if (output === 'auto') {
@@ -80,22 +93,45 @@ async function warnIfMicMuted(inputDevice: string): Promise<void> {
 }
 
 /**
- * Monitor links depend on where the preset output goes. Physical output:
- * clean mic passthrough (hear yourself raw). Virtual mic output: nothing
+ * Monitor links depend on the routing mode. Speakers mode: clean mic
+ * passthrough to the output device (hear yourself raw). Discord mode: nothing
  * reaches the speakers by design, so monitoring means listening to the
- * virtual mic's monitor — the processed voice, exactly what the call hears —
- * on the default physical output.
+ * virtual mic's readable ports — the processed voice, exactly what the call
+ * hears — on the physical output device.
  */
-async function buildMonitorLinksFor(inputDevice: string, outputDevice: string): Promise<AudioLink[]> {
-  if (outputDevice !== virtualMic.VIRTUAL_MIC_NAME) {
-    return pipewire.buildMonitorLinks(inputDevice, outputDevice)
+function buildMonitorLinksFor(inputDevice: string, outputDevice: string): AudioLink[] {
+  if (presetStore.getRouteMode() === 'discord') {
+    return pipewire.buildVirtualMicListenLinks(virtualMic.VIRTUAL_MIC_NAME, outputDevice)
   }
-  const physical = await devices.getDefaultSink()
-  if (!physical || physical === virtualMic.VIRTUAL_MIC_NAME) {
-    sendToast('warning', 'No physical output found for monitoring.')
-    return []
+  return pipewire.buildMonitorLinks(inputDevice, outputDevice)
+}
+
+/**
+ * Run/refresh Discord adoption; called after activation and from the poll.
+ * Adoption is sticky per MODE, not per preset: it stays engaged through Off
+ * and preset switches, because releasing (and flipping the system default
+ * input) mid-session makes call apps raise device-change dialogs and rebind
+ * their streams unpredictably. Release happens only on switching to speakers
+ * mode or quitting.
+ */
+async function updateAdoption(): Promise<void> {
+  const discordMode = presetStore.getRouteMode() === 'discord'
+  try {
+    if (discordMode && virtualMic.isActive()) {
+      await virtualMic.adoptDefaultSource()
+      const adopted = await virtualMic.adoptCaptureStreams()
+      for (const stream of adopted) {
+        sendToast('info', `Routed ${stream.appName || 'an app'} to Persona Virtual Mic`)
+      }
+    }
+    const newState = virtualMic.classifyCapture(await virtualMic.listCaptureStreams())
+    if (newState !== lastCaptureState) {
+      lastCaptureState = newState
+      broadcastStatus()
+    }
+  } catch {
+    // pactl unavailable — no adoption, no status
   }
-  return pipewire.buildVirtualMicMonitorLinks(virtualMic.VIRTUAL_MIC_NAME, physical)
 }
 
 async function pollDevices(): Promise<void> {
@@ -125,6 +161,9 @@ async function pollDevices(): Promise<void> {
   } catch {
     // PipeWire not available
   }
+
+  // Keep Discord adoption current (new call streams appear at any time)
+  await updateAdoption()
 }
 
 export async function activatePreset(id: string): Promise<void> {
@@ -214,7 +253,16 @@ export async function activatePreset(id: string): Promise<void> {
 
   // 3/4. Build and apply PipeWire links
   const { inputDevice, outputDevice } = await resolveDevices()
-  const links = pipewire.buildPresetLinks(inputDevice, outputDevice, carlaIn, carlaOut, isOff)
+  const discordMode = presetStore.getRouteMode() === 'discord'
+  const dest = discordMode
+    ? pipewire.virtualMicFeed(virtualMic.VIRTUAL_MIC_NAME)
+    : pipewire.physicalPlayback(outputDevice)
+  // In Discord mode "Off" means the CLEAN voice, not silence: the call app
+  // stays on the virtual mic (adoption is sticky), so the mic must keep
+  // feeding it. Mute belongs to the call app. Speakers mode keeps the
+  // historic Off = no links at all.
+  const silentOff = isOff && !discordMode
+  const links = pipewire.buildPresetLinks(inputDevice, dest, carlaIn, carlaOut, silentOff)
 
   if (links.length > 0) {
     await pipewire.connectBatch(links)
@@ -223,15 +271,25 @@ export async function activatePreset(id: string): Promise<void> {
   activeLinks = links
   activePresetId = id
 
-  if (!isOff) {
+  if (!silentOff) {
     await warnIfMicMuted(inputDevice)
   }
 
-  // 5. Re-establish monitor links if monitoring is active
+  // 5. Re-establish monitor links if monitoring is active (drop the previous
+  // set first — they were never disconnected on preset switches)
   if (micMonitoring) {
-    const monLinks = await buildMonitorLinksFor(inputDevice, outputDevice)
+    if (monitorLinks.length > 0) {
+      await pipewire.disconnectBatch(monitorLinks)
+    }
+    const monLinks = buildMonitorLinksFor(inputDevice, outputDevice)
     await pipewire.connectBatch(monLinks)
     monitorLinks = monLinks
+  }
+
+  // 6. Discord adoption stays engaged for the whole Discord-mode session
+  // (including Off); it is released only by ROUTE_MODE_SET('speakers') or quit.
+  if (discordMode) {
+    await updateAdoption()
   }
 
   // Apply per-preset volume via OSC
@@ -439,17 +497,6 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.DEVICES_GET_OUTPUTS, async () => {
     knownOutputs = await devices.getOutputDevices()
-    if (virtualMic.isActive()) {
-      return [
-        ...knownOutputs,
-        {
-          name: virtualMic.VIRTUAL_MIC_NAME,
-          description: 'Persona Virtual Mic (for Discord)',
-          ports: ['playback_FL', 'playback_FR'],
-          type: 'output' as const
-        }
-      ]
-    }
     return knownOutputs
   })
 
@@ -459,9 +506,26 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC.DEVICES_SET_SELECTED, (_event, input: string, output: string) => {
     presetStore.setSelectedDevices(input, output)
-    if (output === virtualMic.VIRTUAL_MIC_NAME) {
-      sendToast('info', 'In Discord, set the input device to "Monitor of Persona Virtual Mic". Re-activate your preset to apply the routing.')
+  })
+
+  // --- Routing mode ---
+
+  ipcMain.handle(IPC.ROUTE_MODE_GET, () => {
+    return presetStore.getRouteMode()
+  })
+
+  ipcMain.handle(IPC.ROUTE_MODE_SET, async (_event, mode: RouteMode) => {
+    presetStore.setRouteMode(mode)
+    if (mode === 'speakers') {
+      await virtualMic.releaseAdoption()
     }
+    // Re-route the live chain under the new mode
+    if (activePresetId) {
+      await activatePreset(activePresetId)
+    } else {
+      broadcastStatus()
+    }
+    return mode
   })
 
   // --- Carla ---
@@ -500,7 +564,7 @@ export function registerIpcHandlers(): void {
       }
       micMonitoring = false
     } else {
-      const links = await buildMonitorLinksFor(inputDevice, outputDevice)
+      const links = buildMonitorLinksFor(inputDevice, outputDevice)
       await pipewire.connectBatch(links)
       monitorLinks = links
       micMonitoring = true

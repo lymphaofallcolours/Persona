@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import type { AudioDevice, DeviceSelection } from '../types'
+import type { AudioDevice, DeviceSelection, RouteMode } from '../types'
 
 interface DeviceSelectorProps {
   onDeviceChange?: () => void
@@ -9,6 +9,7 @@ export function DeviceSelector({ onDeviceChange }: DeviceSelectorProps) {
   const [inputs, setInputs] = useState<AudioDevice[]>([])
   const [outputs, setOutputs] = useState<AudioDevice[]>([])
   const [selected, setSelected] = useState<DeviceSelection>({ input: 'auto', output: 'auto' })
+  const [routeMode, setRouteMode] = useState<RouteMode>('speakers')
 
   useEffect(() => {
     Promise.all([
@@ -20,6 +21,7 @@ export function DeviceSelector({ onDeviceChange }: DeviceSelectorProps) {
       setOutputs(outs)
       setSelected(sel)
     })
+    window.persona.routing.getMode().then(setRouteMode)
 
     const unsubscribe = window.persona.devices.onChange(({ inputs: ins, outputs: outs }) => {
       setInputs(ins)
@@ -27,6 +29,13 @@ export function DeviceSelector({ onDeviceChange }: DeviceSelectorProps) {
     })
     return unsubscribe
   }, [])
+
+  const handleRouteMode = async (mode: RouteMode) => {
+    if (mode === routeMode) return
+    setRouteMode(mode)
+    await window.persona.routing.setMode(mode)
+    onDeviceChange?.()
+  }
 
   const handleInputChange = (value: string) => {
     const next = { ...selected, input: value }
@@ -43,7 +52,36 @@ export function DeviceSelector({ onDeviceChange }: DeviceSelectorProps) {
   }
 
   return (
-    <div className="flex gap-3">
+    <div className="flex gap-3 items-end">
+      <div className="shrink-0">
+        <label className="block text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
+          Route to
+        </label>
+        <div className="flex rounded border border-zinc-700 overflow-hidden text-xs">
+          <button
+            onClick={() => handleRouteMode('speakers')}
+            title="Play the voice on your output device (in-person sessions)"
+            className={`px-2.5 py-1.5 transition-colors ${
+              routeMode === 'speakers'
+                ? 'bg-zinc-600 text-zinc-100'
+                : 'bg-zinc-800 text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            Speakers
+          </button>
+          <button
+            onClick={() => handleRouteMode('discord')}
+            title="Send the voice to the Persona Virtual Mic — call apps pick it up automatically"
+            className={`px-2.5 py-1.5 transition-colors ${
+              routeMode === 'discord'
+                ? 'bg-indigo-700 text-zinc-100'
+                : 'bg-zinc-800 text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            Discord
+          </button>
+        </div>
+      </div>
       <div className="flex-1 min-w-0">
         <label className="block text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
           Input
@@ -64,7 +102,7 @@ export function DeviceSelector({ onDeviceChange }: DeviceSelectorProps) {
 
       <div className="flex-1 min-w-0">
         <label className="block text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
-          Output
+          {routeMode === 'discord' ? 'Monitor Output' : 'Output'}
         </label>
         <select
           value={selected.output}

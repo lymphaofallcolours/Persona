@@ -30,7 +30,9 @@ const baseStatus: AppStatus = {
   carlaPlugins: [],
   linksActive: 0,
   micMonitoring: false,
-  oscConnected: false
+  oscConnected: false,
+  routeMode: 'speakers' as const,
+  discordCapture: 'none' as const
 }
 
 describe('StatusBar', () => {

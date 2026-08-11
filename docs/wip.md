@@ -4,6 +4,53 @@
 
 ## Current Session
 
+**Date:** 2026-07-22 (branch `feat/discord-robust-routing`)
+**Goal:** Robust zero-config Discord routing after the monitor-based design failed live
+
+### Completed This Session
+
+- **Root-caused the failure** (ADR 2026-07-22): device-poll race hid the
+  virtual-mic pseudo-device (selection reverted to auto), monitor sources are
+  fragile, zero feedback.
+- **Real virtual source** (`Audio/Source/Virtual`) — "Persona Virtual Mic" is a
+  genuine microphone entry in every app; topology measured (input_FL/FR feed,
+  capture_FL/FR listen; description needs backslash-escaped spaces).
+- **Speakers/Discord toggle** (routeMode in config + segmented control in
+  DeviceSelector; pseudo-device removed; config migration included).
+- **Fully automatic adoption**: default-source switch + live
+  `move-source-output` of call-app streams, all reverted on Off/speakers/quit.
+  Status-bar chip shows call capture truth (green/amber/gray).
+- Verified live: pulse-API capture of the chain shows processed audio;
+  adoption cycle on a fake call stream is clean and reversible.
+- 209 tests passing. discord-setup.md rewritten as zero-config.
+
+### Post-field-test fixes (2026-08-11)
+
+First real Discord test broke (Off = silence in call, Discord device dialog
+triggered by default-source flapping, stale stream indexes). Fixed: sticky
+per-mode adoption (release only on speakers/quit), Off in Discord mode = clean
+passthrough into the virtual mic, stateless release keyed by app name, monitor
+link leak on preset switches. System default input restored to the N32 after
+the drift. See ADR 2026-07-22 amendment.
+
+- **Circular-input regression fixed:** adoption makes the virtual mic the
+  default source, so `input: auto` resolved the chain input to the virtual mic
+  itself (silent presets). Auto-resolution now refuses the virtual mic
+  (falls back to displaced source / first hardware input); release never
+  strands the default on the virtual mic even after a crash.
+
+### Next Steps
+
+1. User acceptance: real Discord call — voices AND Off audible, no Discord
+   dialogs when switching presets, status chip green throughout
+2. Voice-to-voice switching: retest after these fixes (churn removal is the
+   suspected cause); if still broken, capture `pw-link -l` during a bad switch
+3. Merge to main on approval
+
+---
+
+## Previous Session (2026-07-21)
+
 **Date:** 2026-07-21 (branch `feat/onboarding-doctor`)
 **Goal:** Zero-config onboarding — setup doctor + voice archetype generator
 

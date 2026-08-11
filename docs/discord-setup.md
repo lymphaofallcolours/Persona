@@ -1,39 +1,61 @@
 # Discord Setup (Virtual Mic)
 
-Persona creates a virtual microphone — **Persona Virtual Mic** — so voice
-apps receive the *processed* voice instead of the raw mic. One-time setup:
+**There is no setup.** Flip the **Route to** toggle in Persona's header to
+**Discord**, activate a voice, talk. Persona does the rest automatically:
 
-1. In **Persona**: set the **Output** device to *Persona Virtual Mic (for Discord)*.
-2. In **Discord** → User Settings → Voice & Video → Input Device: select
-   **Monitor of Persona Virtual Mic**.
-3. Activate a voice preset. Talk. Discord hears the modulated voice.
+1. It maintains a real virtual microphone — **Persona Virtual Mic** — visible
+   to every app as a genuine input device (a PipeWire `Audio/Source/Virtual`
+   node, not a sink monitor).
+2. The voice chain routes mic → Carla → the virtual mic. Nothing reaches your
+   speakers.
+3. **Automatic adoption:** while a voice is active, Persona makes the virtual
+   mic the system default input *and* actively moves any live call-app capture
+   streams (Discord's `WEBRTC VoiceEngine`, browsers) off hardware mics onto
+   it — mid-call, no Discord settings touched. A toast reports each move.
+4. Adoption is **sticky for the whole Discord-mode session** — it survives Off
+   and preset switches. Only switching Route to **Speakers** or quitting
+   Persona reverts it (streams move home, the previous default input is
+   restored). This is deliberate: flipping the system default input mid-call
+   makes Discord raise device-change dialogs and rebind its stream
+   unpredictably.
+5. **Off in Discord mode = your clean, unprocessed voice** (the call app stays
+   on the Persona mic, fed by a direct passthrough). To go silent, use the
+   call app's own mute.
+
+The status bar shows live truth while in Discord mode:
+- **green "Call: Persona mic"** — a call app is hearing the processed voice
+- **amber "Call: RAW mic"** — a call app is still on a hardware mic (activate
+  a voice; adoption runs within ~3 s)
+- **gray "No call"** — nothing is capturing right now
+
+**Monitor toggle in Discord mode** plays the virtual mic's feed — exactly what
+the call hears — through your Output device (relabelled "Monitor Output").
 
 ## How it works
 
 ```
-Mic ──► Carla (effects) ──► persona_virtual_mic (null sink) ──► Discord input
-                                    │ (monitor ports)
-                                    └──► [optional] your headphones (Monitor toggle)
+Mic ──► Carla (effects) ──► persona_virtual_mic (Audio/Source/Virtual)
+                                   │ appears as a REAL microphone
+                                   ├──► Discord / any call app (auto-adopted)
+                                   └──► [Monitor toggle] your headphones
 ```
 
-- The virtual mic is a PipeWire null sink (`pactl load-module module-null-sink`),
-  created when Persona starts and removed when it quits. Stale instances from a
-  crashed run are cleaned up at the next start.
-- With the virtual mic as output, **nothing reaches your speakers** — you don't
-  hear yourself. The **Monitor** toggle changes meaning here: instead of the raw
-  mic, it plays the virtual mic's monitor — the processed voice, exactly what
-  the call hears — through your default physical output.
-- Keep using your physical output device instead when you want the room to hear
-  the voice (in-person sessions).
+## Troubleshooting
 
-## Reverting / troubleshooting
+- **Status stays amber:** the app resisted adoption (rare). In its own audio
+  settings pick "Persona Virtual Mic" — it's a normal microphone entry now,
+  not a "Monitor of…" pseudo-device.
+- **Voice sounds thinned/gated in the call:** Discord's noise suppression
+  (Krisp) eats ring-mod buzz and reverb tails — turn it off or low.
+- **Everything reverts on its own:** you probably switched Route to Speakers
+  or activated Off — both intentionally release adoption.
+- Manual reset of all runtime state: quit Persona (tray → Quit) or reboot;
+  the virtual mic and every adoption change are runtime-only.
 
-- Everything is runtime state: quitting Persona (or `pactl unload-module` on the
-  null-sink module, or a reboot) removes the virtual mic entirely.
-- Discord shows no "Monitor of Persona Virtual Mic" input → Persona isn't
-  running, or the sink failed to create (a toast reports this).
-- Discord hears your *raw* voice → Discord's input is set to the real mic, not
-  the monitor. Also mute Discord's own noise suppression for effect-heavy
-  voices — it can eat ring-mod/reverb tails.
-- Discord hears nothing → check the preset is active (links exist:
-  `pw-link -l | grep persona_virtual_mic`) and the system-level mic mute toast.
+## History
+
+The first iteration (2026-07-21) exposed a null sink's monitor and required
+manual device selection in Discord; it failed in real use for three reasons
+recorded in `docs/decisions-log.md` (device-list race hid the pseudo-device,
+monitor sources are second-class, no feedback). This zero-config design
+replaced it the next day.

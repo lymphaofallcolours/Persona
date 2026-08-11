@@ -5,7 +5,7 @@ vi.mock('child_process', () => ({
 }))
 
 import { execFile } from 'child_process'
-import { buildPresetLinks, buildMonitorLinks, buildVirtualMicMonitorLinks, disconnectStaleDeviceLinks } from './pipewire'
+import { buildPresetLinks, buildMonitorLinks, buildVirtualMicListenLinks, physicalPlayback, virtualMicFeed, disconnectStaleDeviceLinks } from './pipewire'
 
 const mockExecFile = vi.mocked(execFile)
 
@@ -55,8 +55,8 @@ describe('disconnectStaleDeviceLinks', () => {
   it('sweeps stale virtual-mic links too', async () => {
     const output = [
       'alsa_input.usb-mic:capture_FL',
-      '  |-> persona_virtual_mic:playback_FL',
-      'persona_virtual_mic:monitor_FL',
+      '  |-> persona_virtual_mic:input_FL',
+      'persona_virtual_mic:capture_FL',
       '  |-> alsa_output.pci-0000.analog-stereo:playback_FL'
     ].join('\n')
     mockExecFile.mockImplementation((_cmd: any, args: any, _opts: any, callback: any) => {
@@ -79,23 +79,38 @@ describe('disconnectStaleDeviceLinks', () => {
   })
 })
 
-describe('buildVirtualMicMonitorLinks', () => {
-  it('routes the virtual mic monitor (processed voice) to a physical output', () => {
-    expect(buildVirtualMicMonitorLinks('persona_virtual_mic', SINK)).toEqual([
-      { source: 'persona_virtual_mic:monitor_FL', destination: `${SINK}:playback_FL` },
-      { source: 'persona_virtual_mic:monitor_FR', destination: `${SINK}:playback_FR` }
+describe('buildVirtualMicListenLinks', () => {
+  it('routes the virtual mic readable ports (processed voice) to a physical output', () => {
+    expect(buildVirtualMicListenLinks('persona_virtual_mic', SINK)).toEqual([
+      { source: 'persona_virtual_mic:capture_FL', destination: `${SINK}:playback_FL` },
+      { source: 'persona_virtual_mic:capture_FR', destination: `${SINK}:playback_FR` }
     ])
+  })
+})
+
+describe('destination helpers', () => {
+  it('builds physical and virtual destinations', () => {
+    expect(physicalPlayback('alsa_output.x')).toEqual({ left: 'alsa_output.x:playback_FL', right: 'alsa_output.x:playback_FR' })
+    expect(virtualMicFeed('persona_virtual_mic')).toEqual({ left: 'persona_virtual_mic:input_FL', right: 'persona_virtual_mic:input_FR' })
+  })
+
+  it('routes a preset chain into the virtual mic feed ports', () => {
+    const carlaIn = { left: 'Carla:audio-in1', right: 'Carla:audio-in2' }
+    const carlaOut = { left: 'Carla:audio-out1', right: 'Carla:audio-out2' }
+    const links = buildPresetLinks(MIC, virtualMicFeed('persona_virtual_mic'), carlaIn, carlaOut, false)
+    expect(links).toContainEqual({ source: 'Carla:audio-out1', destination: 'persona_virtual_mic:input_FL' })
+    expect(links).toContainEqual({ source: 'Carla:audio-out2', destination: 'persona_virtual_mic:input_FR' })
   })
 })
 
 describe('buildPresetLinks', () => {
   it('returns empty array for Off preset', () => {
-    const links = buildPresetLinks(MIC, SINK, null, null, true)
+    const links = buildPresetLinks(MIC, physicalPlayback(SINK), null, null, true)
     expect(links).toEqual([])
   })
 
   it('creates direct passthrough when no Carla ports', () => {
-    const links = buildPresetLinks(MIC, SINK, null, null, false)
+    const links = buildPresetLinks(MIC, physicalPlayback(SINK), null, null, false)
     expect(links).toEqual([
       { source: `${MIC}:capture_FL`, destination: `${SINK}:playback_FL` },
       { source: `${MIC}:capture_FR`, destination: `${SINK}:playback_FR` }
@@ -104,7 +119,7 @@ describe('buildPresetLinks', () => {
 
   it('creates passthrough when only carlaIn is null', () => {
     const carlaOut = { left: 'Calf Reverb:Out L', right: 'Calf Reverb:Out R' }
-    const links = buildPresetLinks(MIC, SINK, null, carlaOut, false)
+    const links = buildPresetLinks(MIC, physicalPlayback(SINK), null, carlaOut, false)
     expect(links).toEqual([
       { source: `${MIC}:capture_FL`, destination: `${SINK}:playback_FL` },
       { source: `${MIC}:capture_FR`, destination: `${SINK}:playback_FR` }
@@ -114,7 +129,7 @@ describe('buildPresetLinks', () => {
   it('routes through Carla with individual plugin ports', () => {
     const carlaIn = { left: 'Calf Compressor:In L', right: 'Calf Compressor:In R' }
     const carlaOut = { left: 'Calf Reverb:Out L', right: 'Calf Reverb:Out R' }
-    const links = buildPresetLinks(MIC, SINK, carlaIn, carlaOut, false)
+    const links = buildPresetLinks(MIC, physicalPlayback(SINK), carlaIn, carlaOut, false)
     expect(links).toEqual([
       { source: `${MIC}:capture_FL`, destination: 'Calf Compressor:In L' },
       { source: `${MIC}:capture_FR`, destination: 'Calf Compressor:In R' },
@@ -126,7 +141,7 @@ describe('buildPresetLinks', () => {
   it('routes through single Carla node ports', () => {
     const carlaIn = { left: 'Carla:audio-in1', right: 'Carla:audio-in2' }
     const carlaOut = { left: 'Carla:audio-out1', right: 'Carla:audio-out2' }
-    const links = buildPresetLinks(MIC, SINK, carlaIn, carlaOut, false)
+    const links = buildPresetLinks(MIC, physicalPlayback(SINK), carlaIn, carlaOut, false)
     expect(links).toEqual([
       { source: `${MIC}:capture_FL`, destination: 'Carla:audio-in1' },
       { source: `${MIC}:capture_FR`, destination: 'Carla:audio-in2' },
@@ -138,7 +153,7 @@ describe('buildPresetLinks', () => {
   it('generates exactly 4 links for any port pair (stereo in + stereo out)', () => {
     const carlaIn = { left: 'Plugin A:In L', right: 'Plugin A:In R' }
     const carlaOut = { left: 'Plugin B:Out L', right: 'Plugin B:Out R' }
-    const links = buildPresetLinks(MIC, SINK, carlaIn, carlaOut, false)
+    const links = buildPresetLinks(MIC, physicalPlayback(SINK), carlaIn, carlaOut, false)
     expect(links).toHaveLength(4)
   })
 })

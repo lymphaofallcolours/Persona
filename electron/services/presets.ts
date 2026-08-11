@@ -3,7 +3,7 @@ import { join, dirname, basename, extname } from 'path'
 import { homedir } from 'os'
 import { app } from 'electron'
 import { v4 as uuidv4 } from 'uuid'
-import type { Preset, PresetConfig, PresetGroup, PersonaExport, SessionProfile } from '../../src/types'
+import type { Preset, PresetConfig, PresetGroup, PersonaExport, SessionProfile, RouteMode } from '../../src/types'
 
 const CONFIG_DIR = join(homedir(), '.config', 'persona')
 const CONFIG_FILE = join(CONFIG_DIR, 'presets.json')
@@ -104,6 +104,11 @@ function migrateConfig(config: any): PresetConfig {
   }
   if (!config.sessions) {
     config.sessions = []
+  }
+  // Superseded virtual-mic-as-output-device approach → routing mode
+  if (config.selectedOutput === 'persona_virtual_mic') {
+    config.selectedOutput = 'auto'
+    config.routeMode = 'discord'
   }
   return config as PresetConfig
 }
@@ -255,6 +260,18 @@ export function setSelectedDevices(input: string, output: string): void {
   const config = loadConfig()
   config.selectedInput = input
   config.selectedOutput = output
+  saveConfig(config)
+}
+
+// --- Routing mode (speakers vs Discord virtual mic) ---
+
+export function getRouteMode(): RouteMode {
+  return loadConfig().routeMode ?? 'speakers'
+}
+
+export function setRouteMode(mode: RouteMode): void {
+  const config = loadConfig()
+  config.routeMode = mode
   saveConfig(config)
 }
 

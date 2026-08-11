@@ -50,6 +50,10 @@ export interface AudioDevice {
   type: 'input' | 'output'
 }
 
+export type RouteMode = 'speakers' | 'discord'
+
+export type CaptureState = 'virtual' | 'raw' | 'none'
+
 export interface AppStatus {
   activePresetId: string | null
   carlaRunning: boolean
@@ -57,6 +61,8 @@ export interface AppStatus {
   linksActive: number
   micMonitoring: boolean
   oscConnected: boolean
+  routeMode: RouteMode
+  discordCapture: CaptureState
 }
 
 export interface PresetConfig {
@@ -68,6 +74,7 @@ export interface PresetConfig {
   sessions: SessionProfile[]
   onboardingComplete?: boolean
   voicesDir?: string
+  routeMode?: RouteMode
 }
 
 export interface DeviceSelection {

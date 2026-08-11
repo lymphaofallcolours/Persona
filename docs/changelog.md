@@ -7,6 +7,12 @@ This changelog is auto-generated from conventional commit messages.
 
 <!-- Entries below — newest first -->
 
+## [0.21.0] — 2026-08-11
+- feat: zero-config Discord routing — real virtual mic with sticky adoption (380d9f8)
+
+## [0.20.0] — 2026-08-11
+- feat(discord): zero-config robust routing — real virtual source, sticky adoption (f39b62a)
+
 ## [0.19.0] — 2026-07-21
 - feat: zero-config onboarding, voice roster, Discord virtual mic, portable config (cde7014)
 

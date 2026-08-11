@@ -13,7 +13,9 @@ export function MiniPanel() {
     carlaPlugins: [],
     linksActive: 0,
     micMonitoring: false,
-    oscConnected: false
+    oscConnected: false,
+    routeMode: 'speakers',
+    discordCapture: 'none'
   })
 
   useEffect(() => {

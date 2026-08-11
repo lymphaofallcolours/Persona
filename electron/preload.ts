@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from './ipc/channels'
 import type {
   Preset, PresetGroup, AudioDevice, AppStatus, DeviceSelection, DeviceState, Toast, SessionProfile,
-  SetupReport, SetupFixResult, VoiceArchetype
+  SetupReport, SetupFixResult, VoiceArchetype, RouteMode
 } from '../src/types'
 
 export interface PersonaAPI {
@@ -58,6 +58,10 @@ export interface PersonaAPI {
   micMonitor: {
     toggle(): Promise<boolean>
     isOn(): Promise<boolean>
+  }
+  routing: {
+    getMode(): Promise<RouteMode>
+    setMode(mode: RouteMode): Promise<RouteMode>
   }
   osc: {
     connect(port?: number): Promise<boolean>
@@ -153,6 +157,10 @@ const api: PersonaAPI = {
   micMonitor: {
     toggle: () => ipcRenderer.invoke(IPC.MIC_MONITOR_TOGGLE),
     isOn: () => ipcRenderer.invoke(IPC.MIC_MONITOR_GET)
+  },
+  routing: {
+    getMode: () => ipcRenderer.invoke(IPC.ROUTE_MODE_GET),
+    setMode: (mode) => ipcRenderer.invoke(IPC.ROUTE_MODE_SET, mode)
   },
   osc: {
     connect: (port?) => ipcRenderer.invoke(IPC.OSC_CONNECT, port),

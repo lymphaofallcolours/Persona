@@ -19,6 +19,10 @@ const mockPersona = {
     getSelected: vi.fn().mockResolvedValue({ input: 'auto', output: 'auto' }),
     setSelected: vi.fn().mockResolvedValue(undefined),
     onChange: vi.fn().mockReturnValue(() => {})
+  },
+  routing: {
+    getMode: vi.fn().mockResolvedValue('speakers'),
+    setMode: vi.fn().mockResolvedValue('discord')
   }
 }
 
@@ -76,5 +80,25 @@ describe('DeviceSelector', () => {
   it('subscribes to device changes on mount', () => {
     render(<DeviceSelector />)
     expect(mockPersona.devices.onChange).toHaveBeenCalled()
+  })
+
+  it('renders the routing toggle and switches to Discord mode', async () => {
+    render(<DeviceSelector />)
+    await waitFor(() => screen.getByText('Speakers'))
+
+    fireEvent.click(screen.getByText('Discord'))
+    await waitFor(() => {
+      expect(mockPersona.routing.setMode).toHaveBeenCalledWith('discord')
+    })
+    // Output dropdown relabelled to clarify it is the listen path
+    expect(screen.getByText('Monitor Output')).toBeTruthy()
+  })
+
+  it('does not re-set the mode when clicking the active one', async () => {
+    render(<DeviceSelector />)
+    await waitFor(() => screen.getByText('Speakers'))
+
+    fireEvent.click(screen.getByText('Speakers'))
+    expect(mockPersona.routing.setMode).not.toHaveBeenCalled()
   })
 })
